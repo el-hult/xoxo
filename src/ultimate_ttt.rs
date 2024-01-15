@@ -1,9 +1,9 @@
-use crate::core::BoardTrait;
+use crate::core::Board as BoardTrait;
 
 use super::*;
 
 pub struct UltimateTicTacToe {
-    board: UTTTBoard,
+    board: Board,
     turn: PlayerMark,
     player_naught: Box<dyn Player<UltimateTicTacToe>>,
     player_cross: Box<dyn Player<UltimateTicTacToe>>,
@@ -15,7 +15,7 @@ impl UltimateTicTacToe {
         crosses: Box<dyn Player<UltimateTicTacToe>>,
     ) -> Self {
         Self {
-            board: UTTTBoard::new(),
+            board: Board::new(),
             turn: PlayerMark::Naught,
             player_naught: naughts,
             player_cross: crosses,
@@ -32,7 +32,7 @@ impl UltimateTicTacToe {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct UTTTBoard {
+pub struct Board {
     /// The board is a 3x3 grid of 3x3 grids
     /// board[i][j] is the sub-board at position (i, j)
     /// so board[0][0] is the top left sub-board
@@ -62,7 +62,7 @@ pub enum BoardStatus {
     Won(PlayerMark),
 }
 
-impl UTTTBoard {
+impl Board {
     fn new() -> Self {
         Self {
             sup_board: [[BoardStatus::Running; 3]; 3],
@@ -214,8 +214,8 @@ impl TryFrom<(usize, usize, usize, usize)> for Action {
 }
 
 impl Game for UltimateTicTacToe {
-    type Board = UTTTBoard;
-
+    type Board = Board;
+    type Action = Action;
     fn run(&mut self) {
         while self.board.winner.is_none() {
             let action = if self.turn == PlayerMark::Naught {
@@ -233,7 +233,7 @@ impl Game for UltimateTicTacToe {
     }
 }
 
-impl Display for UTTTBoard {
+impl Display for Board {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut board = String::new();
         board.push_str(" --- --- --- \n");
@@ -260,9 +260,8 @@ impl Display for UTTTBoard {
     }
 }
 
-impl BoardTrait for UTTTBoard {
-    type Action = Action;
-    fn valid_moves(&self) -> Vec<Self::Action> {
+impl BoardTrait<Action> for Board {
+    fn valid_moves(&self) -> Vec<Action> {
         let mut moves = vec![];
         for i in 0..3 {
             for j in 0..3 {
@@ -281,7 +280,7 @@ impl BoardTrait for UTTTBoard {
         }
         moves
     }
-    fn place_mark(&mut self, a: Self::Action, marker: PlayerMark) {
+    fn place_mark(&mut self, a: Action, marker: PlayerMark) {
         self.mark(a, marker);
     }
     fn game_over(&self) -> bool {

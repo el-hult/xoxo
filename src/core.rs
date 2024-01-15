@@ -27,7 +27,7 @@ where
 {
     /// The play function is the main mechanic for the AIs
     /// You observe the whole board through a reference, and can do whatever you like, and then you return an action representing where to play
-    fn play(&mut self, b: &G::Board) -> <G::Board as BoardTrait>::Action;
+    fn play(&mut self, b: &G::Board) -> G::Action;
 }
 
 
@@ -35,15 +35,15 @@ pub type HeuristicFn<G> = fn(PlayerMark, &<G as Game>::Board) -> f64;
 
 
 pub trait Game {
-    type Board: BoardTrait + Copy;
+    type Action: Copy + Display;
+    type Board: Board<Self::Action> + Copy;
     fn run(&mut self);
 }
 
-pub trait BoardTrait: Display {
+pub trait Board<Action>: Display {
     /// Actions that can be taken on this board
     /// They should be some simple kind of data, so they must implement Copy
-    type Action: Copy + Display;
-    fn valid_moves(&self) -> Vec<Self::Action>;
-    fn place_mark(&mut self, a: Self::Action, marker: PlayerMark);
+    fn valid_moves(&self) -> Vec<Action>;
+    fn place_mark(&mut self, a: Action, marker: PlayerMark);
     fn game_over(&self) -> bool;
 }

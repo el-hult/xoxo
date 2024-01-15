@@ -1,4 +1,4 @@
-use super::core::{BoardTrait, Game, HeuristicFn, Player, PlayerMark};
+use super::core::{Board, Game, HeuristicFn, Player, PlayerMark};
 
 pub struct ABAi<G>
 where
@@ -87,11 +87,8 @@ impl<G: Game> ABAi<G> {
     }
 }
 
-impl<G> Player<G> for ABAi<G>
-where
-    G: Game,
-{
-    fn play(&mut self, b: &<G as Game>::Board) -> <G::Board as BoardTrait>::Action {
+impl<G: Game> Player<G> for ABAi<G> {
+    fn play(&mut self, b: &G::Board) -> G::Action {
         let res = b
             .valid_moves()
             .iter()
