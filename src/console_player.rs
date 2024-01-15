@@ -14,8 +14,8 @@ impl ConsolePlayer {
         }
     }
 }
-impl Player<TicTacToeGame> for ConsolePlayer {
-    fn play(&mut self, b: &<TicTacToeGame as Game>::Board) -> tictactoe::Action {
+impl Player<TicTacToe> for ConsolePlayer {
+    fn play(&mut self, b: &<TicTacToe as Game>::Board) -> tictactoe::Action {
         println!("Time for {} to make a move", self.name);
         print!("{}", b);
         println!("Input a number 1-9 to make a move 1 = top left, 9 = bottom right");

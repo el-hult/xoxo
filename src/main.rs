@@ -13,7 +13,7 @@ use min_max::MinMaxAi;
 use random_ai::RandomAi;
 use core::{PlayerMark, Game, Player};
 use std::{fmt::Display, io::BufRead};
-use tictactoe::TicTacToeGame;
+use tictactoe::TicTacToe;
 use ultimate_ttt::UltimateTicTacToe;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
@@ -59,7 +59,7 @@ struct Args {
     ab_depth: usize,
 }
 
-fn ttt_heuristic(my_marker: PlayerMark, b: &<TicTacToeGame as Game>::Board) -> f64 {
+fn ttt_heuristic(my_marker: PlayerMark, b: &<TicTacToe as Game>::Board) -> f64 {
     let n_moves_made: f64 = b.n_moves_made();
     match b.winner() {
         None => 0.0 + n_moves_made,
@@ -97,7 +97,7 @@ fn main() {
     let args = Args::parse();
     match args.game {
         GameType::Ttt => {
-            let p1: Box<dyn Player<TicTacToeGame>> = match args.p1 {
+            let p1: Box<dyn Player<TicTacToe>> = match args.p1 {
                 PlayerType::Console => Box::new(ConsolePlayer::new(PlayerMark::Naught)),
                 PlayerType::Random => Box::new(RandomAi::new(PlayerMark::Naught)),
                 PlayerType::Minimax => Box::new(MinMaxAi::new(
@@ -109,7 +109,7 @@ fn main() {
                     Box::new(ABAi::new(PlayerMark::Naught, ttt_heuristic, args.ab_depth))
                 }
             };
-            let p2: Box<dyn Player<TicTacToeGame>> = match args.p2 {
+            let p2: Box<dyn Player<TicTacToe>> = match args.p2 {
                 PlayerType::Console => Box::new(ConsolePlayer::new(PlayerMark::Cross)),
                 PlayerType::Random => Box::new(RandomAi::new(PlayerMark::Cross)),
                 PlayerType::Minimax => Box::new(MinMaxAi::new(
@@ -121,7 +121,7 @@ fn main() {
                     Box::new(ABAi::new(PlayerMark::Cross, ttt_heuristic, args.ab_depth))
                 }
             };
-            let mut g = TicTacToeGame::new(p1, p2);
+            let mut g = TicTacToe::new(p1, p2);
             g.run()
         }
         GameType::Uttt => {

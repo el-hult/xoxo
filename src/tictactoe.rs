@@ -156,13 +156,13 @@ impl std::fmt::Display for Board {
 
 /// The holder of the game state, and the state of the players
 /// This struct is a bit nasty, because it is kind of a world-object
-pub struct TicTacToeGame {
-    player1: Box<dyn Player<TicTacToeGame>>,
-    player2: Box<dyn Player<TicTacToeGame>>,
+pub struct TicTacToe {
+    player1: Box<dyn Player<TicTacToe>>,
+    player2: Box<dyn Player<TicTacToe>>,
     board: Board,
 }
 
-impl Game for TicTacToeGame {
+impl Game for TicTacToe {
     type Board = Board;
     type Action = Action;
     fn run(&mut self) {
@@ -186,10 +186,10 @@ impl Game for TicTacToeGame {
 
 type Marker = Option<PlayerMark>;
 
-impl TicTacToeGame {
+impl TicTacToe {
     pub fn new(
-        naughts: Box<dyn Player<TicTacToeGame>>,
-        crosses: Box<dyn Player<TicTacToeGame>>,
+        naughts: Box<dyn Player<TicTacToe>>,
+        crosses: Box<dyn Player<TicTacToe>>,
     ) -> Self {
         Self {
             player1: naughts,

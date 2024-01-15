@@ -102,7 +102,7 @@ impl<G:Game> Player<G> for MinMaxAi<G>
 mod test {
     use crate::{
         tictactoe::Action,
-        tictactoe::{Board, TicTacToeGame},
+        tictactoe::{Board, TicTacToe},
         ttt_heuristic, min_max::MinMaxAi,
         core::Player
     };
@@ -110,14 +110,14 @@ mod test {
     #[test]
     fn can_find_winning_move() {
         let b = Board::from_str("   xx    ");
-        let mut ai = MinMaxAi::<TicTacToeGame>::new(crate::PlayerMark::Cross, ttt_heuristic, 10);
+        let mut ai = MinMaxAi::<TicTacToe>::new(crate::PlayerMark::Cross, ttt_heuristic, 10);
         let action: Action = ai.play(&b);
         assert_eq!(action, Action(6))
     }
     #[test]
     fn can_block_winning_move() {
         let b = Board::from_str("oo  x    ");
-        let mut ai = MinMaxAi::<TicTacToeGame>::new(crate::PlayerMark::Cross, ttt_heuristic, 10);
+        let mut ai = MinMaxAi::<TicTacToe>::new(crate::PlayerMark::Cross, ttt_heuristic, 10);
         let action = ai.play(&b);
         assert_eq!(action, Action(3))
     }
