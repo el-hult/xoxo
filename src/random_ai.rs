@@ -1,6 +1,6 @@
 
 use super::*;
-use crate::core::Board;
+use crate::core::BoardTrait;
 pub struct RandomAi<Rng> {
     rng: Rng,
     pub name: String,
@@ -11,7 +11,7 @@ where
     Rng: rand::Rng,
     G: Game,
 {
-    fn play(&mut self, b: &G::B) -> <G::B as Board>::A {
+    fn play(&mut self, b: &G::Board) -> <G::Board as BoardTrait>::Action {
         let moves: Vec<_> = b.valid_moves();
         let idx = self.rng.next_u32() as usize % moves.len();
         println!("Random AI `{}` plays {}", self.name, moves[idx]);

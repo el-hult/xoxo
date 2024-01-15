@@ -15,7 +15,7 @@ impl ConsolePlayer {
     }
 }
 impl Player<TicTacToeGame> for ConsolePlayer {
-    fn play(&mut self, b: &<TicTacToeGame as Game>::B) -> tictactoe::Action {
+    fn play(&mut self, b: &<TicTacToeGame as Game>::Board) -> tictactoe::Action {
         println!("Time for {} to make a move", self.name);
         print!("{}", b);
         println!("Input a number 1-9 to make a move 1 = top left, 9 = bottom right");
@@ -37,7 +37,7 @@ impl Player<TicTacToeGame> for ConsolePlayer {
     }
 }
 impl Player<UltimateTicTacToe> for ConsolePlayer {
-    fn play(&mut self, b: &<UltimateTicTacToe as Game>::B) -> ultimate_ttt::Action {
+    fn play(&mut self, b: &<UltimateTicTacToe as Game>::Board) -> ultimate_ttt::Action {
         println!("Time for {} to make a move", self.name);
         print!("{}", b);
         println!("Input four numbers 1-2 to make a move 1 = top left, 2 = bottom right");

@@ -59,7 +59,7 @@ struct Args {
     ab_depth: usize,
 }
 
-fn ttt_heuristic(my_marker: PlayerMark, b: &<TicTacToeGame as Game>::B) -> f64 {
+fn ttt_heuristic(my_marker: PlayerMark, b: &<TicTacToeGame as Game>::Board) -> f64 {
     let n_moves_made: f64 = b.n_moves_made();
     match b.winner() {
         None => 0.0 + n_moves_made,
@@ -72,7 +72,7 @@ fn ttt_heuristic(my_marker: PlayerMark, b: &<TicTacToeGame as Game>::B) -> f64 {
         }
     }
 }
-fn uttt_heuristic(my_marker: PlayerMark, b: &<UltimateTicTacToe as Game>::B) -> f64 {
+fn uttt_heuristic(my_marker: PlayerMark, b: &<UltimateTicTacToe as Game>::Board) -> f64 {
     let n_moves_made: f64 = b.n_moves_made() as f64;
     let n_supboards_won = b
         .get_sup_board()

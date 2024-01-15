@@ -1,4 +1,4 @@
-use crate::core::Board;
+use crate::core::BoardTrait;
 
 use super::*;
 
@@ -214,7 +214,7 @@ impl TryFrom<(usize, usize, usize, usize)> for Action {
 }
 
 impl Game for UltimateTicTacToe {
-    type B = UTTTBoard;
+    type Board = UTTTBoard;
 
     fn run(&mut self) {
         while self.board.winner.is_none() {
@@ -260,9 +260,9 @@ impl Display for UTTTBoard {
     }
 }
 
-impl Board for UTTTBoard {
-    type A = Action;
-    fn valid_moves(&self) -> Vec<Self::A> {
+impl BoardTrait for UTTTBoard {
+    type Action = Action;
+    fn valid_moves(&self) -> Vec<Self::Action> {
         let mut moves = vec![];
         for i in 0..3 {
             for j in 0..3 {
@@ -281,7 +281,7 @@ impl Board for UTTTBoard {
         }
         moves
     }
-    fn place_mark(&mut self, a: Self::A, marker: PlayerMark) {
+    fn place_mark(&mut self, a: Self::Action, marker: PlayerMark) {
         self.mark(a, marker);
     }
     fn game_over(&self) -> bool {

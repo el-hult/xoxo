@@ -27,23 +27,23 @@ where
 {
     /// The play function is the main mechanic for the AIs
     /// You observe the whole board through a reference, and can do whatever you like, and then you return an action representing where to play
-    fn play(&mut self, b: &G::B) -> <G::B as Board>::A;
+    fn play(&mut self, b: &G::Board) -> <G::Board as BoardTrait>::Action;
 }
 
 
-pub type HeuristicFn<G> = fn(PlayerMark, &<G as Game>::B) -> f64;
+pub type HeuristicFn<G> = fn(PlayerMark, &<G as Game>::Board) -> f64;
 
 
 pub trait Game {
-    type B: Board + Copy;
+    type Board: BoardTrait + Copy;
     fn run(&mut self);
 }
 
-pub trait Board: Display {
+pub trait BoardTrait: Display {
     /// Actions that can be taken on this board
     /// They should be some simple kind of data, so they must implement Copy
-    type A: Copy + Display;
-    fn valid_moves(&self) -> Vec<Self::A>;
-    fn place_mark(&mut self, a: Self::A, marker: PlayerMark);
+    type Action: Copy + Display;
+    fn valid_moves(&self) -> Vec<Self::Action>;
+    fn place_mark(&mut self, a: Self::Action, marker: PlayerMark);
     fn game_over(&self) -> bool;
 }

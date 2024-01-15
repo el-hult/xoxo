@@ -1,4 +1,4 @@
-use super::core::{Board, Game, HeuristicFn, Player, PlayerMark};
+use super::core::{BoardTrait, Game, HeuristicFn, Player, PlayerMark};
 
 pub struct ABAi<G>
 where
@@ -26,7 +26,7 @@ impl<G: Game> ABAi<G> {
         }
     }
 
-    fn heuristic(&mut self, b: &<G as Game>::B) -> f64 {
+    fn heuristic(&mut self, b: &<G as Game>::Board) -> f64 {
         self.n_leafs_evaluated += 1;
         (self.heuristic_fn)(self.my_marker, b)
     }
@@ -35,7 +35,7 @@ impl<G: Game> ABAi<G> {
     /// Assumes I want to maximize my score, and the opponent makes moves to minimize it
     fn alphabeta(
         &mut self,
-        node: &<G as Game>::B,
+        node: &<G as Game>::Board,
         depth: usize,
         a: f64,
         b: f64,
@@ -91,7 +91,7 @@ impl<G> Player<G> for ABAi<G>
 where
     G: Game,
 {
-    fn play(&mut self, b: &<G as Game>::B) -> <G::B as Board>::A {
+    fn play(&mut self, b: &<G as Game>::Board) -> <G::Board as BoardTrait>::Action {
         let res = b
             .valid_moves()
             .iter()

@@ -1,4 +1,4 @@
-use crate::core::{Board, Game, Player, PlayerMark, HeuristicFn};
+use crate::core::{BoardTrait, Game, Player, PlayerMark, HeuristicFn};
 
 pub struct MinMaxAi<G>
 where
@@ -33,14 +33,14 @@ where
     /// If we can win, we want to win fast,
     /// If we must lose or tie, we want to lose slowly
     /// It is always good to hold the mid point
-    fn heuristic(&mut self, b: &<G as Game>::B) -> f64 {
+    fn heuristic(&mut self, b: &<G as Game>::Board) -> f64 {
         self.n_leafs_evaluated += 1;
         (self.heuristic_fn)(self.my_marker, b)
     }
 
     /// compute the score of a node by use of minimax
     /// Assumes I want to maximize my score, and the opponent makes moves to minimize it
-    fn minimax(&mut self, node: &<G as Game>::B, depth: usize, my_move: bool) -> f64 {
+    fn minimax(&mut self, node: &<G as Game>::Board, depth: usize, my_move: bool) -> f64 {
         if depth == 0 || node.game_over() {
             let s = self.heuristic(node);
             // println!("Leaf node board\n {node} gets score {s}, at {depth}. Compare with {a} and {b}");
@@ -81,7 +81,7 @@ impl<G> Player<G> for MinMaxAi<G>
 where
     G: Game,
 {
-    fn play(&mut self, b: &<G as Game>::B) -> <G::B as Board>::A {
+    fn play(&mut self, b: &<G as Game>::Board) -> <G::Board as BoardTrait>::Action {
         let res = b
             .valid_moves()
             .iter()
