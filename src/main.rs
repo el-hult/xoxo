@@ -17,16 +17,13 @@ mod tictactoe {
     /// Like the numbers on a phone. :)
     ///
     ///
-
-    #[derive(Debug, PartialEq, Eq)]
-    pub(crate) enum Action {
-        /// invariant: the number inside must be 1-N_SQUARES
-        MoveAt(usize),
-    }
+    /// invariant: the number inside must be 1-N_SQUARES
+    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+    pub(crate) struct Action(pub usize);
     impl Action {
         pub fn move_at(idx: usize) -> Action {
             if (1..=N_SQUARES).contains(&idx) {
-                Action::MoveAt(idx)
+                Action(idx)
             } else {
                 panic!("Tried to make an invalid move. Must be 1-N_SQUARES, but got {idx}")
             }
@@ -39,6 +36,16 @@ mod tictactoe {
     /// It holds 8 numbers: 3 rows (top to bottom), 3 columns (left to rifht) and two diagonals (first the one that points to southeast, and the the one to northeast)
     #[derive(Clone, Copy, Debug)]
     pub struct Board([Marker; N_SQUARES], [i32; 8]);
+
+    impl super::Board for Board {
+        type A = Action;
+        fn valid_moves(&self) -> Vec<Self::A> {
+            self.empty_addresses()
+                .iter()
+                .map(|&q| Action::move_at(q))
+                .collect()
+        }
+    }
 
     impl Board {
         pub fn winner(&self) -> Option<PlayerMark> {
@@ -103,7 +110,7 @@ mod tictactoe {
         }
 
         /// with the 1-N_SQUARES convention
-        pub fn empty_addresses(&self) -> Vec<usize> {
+        fn empty_addresses(&self) -> Vec<usize> {
             self.0
                 .iter()
                 .enumerate()
@@ -152,7 +159,7 @@ mod tictactoe {
     }
 
     impl Game for TicTacToeGame {
-        type Board = Board;
+        type B = Board;
     }
 
     type Marker = Option<PlayerMark>;
@@ -176,7 +183,7 @@ mod tictactoe {
                 PlayerMark::Cross
             };
             match a {
-                Action::MoveAt(num) => {
+                Action(num) => {
                     println!("Player {player_mark:?} placed marker at {num}");
                     self.board.place(num, player_mark);
                 }
@@ -209,17 +216,21 @@ mod tictactoe {
 use alpha_beta::ABAi;
 use tictactoe::Action;
 
-struct ConsolePlayer {
-    name: String,
-}
+mod console_player {
+    use super::*;
 
-impl ConsolePlayer {
-    pub fn new(mark: PlayerMark) -> Self {
-        ConsolePlayer {
-            name: match mark {
-                PlayerMark::Cross => "X".into(),
-                PlayerMark::Naught => "O".into(),
-            },
+    pub struct ConsolePlayer {
+        pub(crate) name: String,
+    }
+
+    impl ConsolePlayer {
+        pub fn new(mark: PlayerMark) -> Self {
+            ConsolePlayer {
+                name: match mark {
+                    PlayerMark::Cross => "X".into(),
+                    PlayerMark::Naught => "O".into(),
+                },
+            }
         }
     }
 }
@@ -244,13 +255,13 @@ pub(crate) trait Player<G>
 where
     G: Game,
 {
-    /// The play function is the main mechanic.
+    /// The play function is the main mechanic for the AIs
     /// You observe the whole board through a reference, and can do whatever you like, and then you return an action representing where to play
-    fn play(&mut self, b: &G::Board) -> Action;
+    fn play(&mut self, b: &G::B) -> <G::B as Board>::A;
 }
 
 impl Player<TicTacToeGame> for ConsolePlayer {
-    fn play(&mut self, b: &<TicTacToeGame as Game>::Board) -> Action {
+    fn play(&mut self, b: &<TicTacToeGame as Game>::B) -> Action {
         println!("Time for {} to make a move", self.name);
         print!("{}", b);
         println!("Input a number 1-9 to make a move 1 = top left, 9 = bottom right");
@@ -268,29 +279,33 @@ impl Player<TicTacToeGame> for ConsolePlayer {
             eprintln!("Number not in range 1-N_SQUARES");
         }
         println!("Got {}", num);
-        Action::MoveAt(num)
+        Action(num)
     }
 }
 
-struct RandomAi<Rng> {
-    rng: Rng,
-}
-
-impl<Rng> Player<TicTacToeGame> for RandomAi<Rng>
-where
-    Rng: rand::Rng,
-{
-    fn play(&mut self, b: &<TicTacToeGame as Game>::Board) -> Action {
-        let free_spots: Vec<_> = b.empty_addresses();
-        let idx = self.rng.next_u32() as usize % free_spots.len();
-        Action::move_at(free_spots[idx])
+mod random_ai {
+    use super::*;
+    pub(crate) struct RandomAi<Rng> {
+        rng: Rng,
     }
-}
 
-impl RandomAi<rand::prelude::ThreadRng> {
-    pub fn new() -> Self {
-        Self {
-            rng: rand::thread_rng(),
+    impl<Rng, G> Player<G> for RandomAi<Rng>
+    where
+        Rng: rand::Rng,
+        G: Game,
+    {
+        fn play(&mut self, b: &G::B) -> <G::B as Board>::A {
+            let moves: Vec<_> = b.valid_moves();
+            let idx = self.rng.next_u32() as usize % moves.len();
+            moves[idx]
+        }
+    }
+
+    impl RandomAi<rand::prelude::ThreadRng> {
+        pub fn new() -> Self {
+            Self {
+                rng: rand::thread_rng(),
+            }
         }
     }
 }
@@ -317,7 +332,7 @@ mod alpha_beta {
         /// If we can win, we want to win fast,
         /// If we must lose or tie, we want to lose slowly
         /// It is always good to hold the mid point
-        fn heuristic(&mut self, b: &<TicTacToeGame as Game>::Board) -> f64 {
+        fn heuristic(&mut self, b: &<TicTacToeGame as Game>::B) -> f64 {
             self.n_leafs_evaluated += 1;
             let n_moves_made: f64 = b.n_moves_made();
             match b.winner() {
@@ -336,7 +351,7 @@ mod alpha_beta {
         /// Assumes I want to maximize my score, and the opponent makes moves to minimize it
         fn alphabeta(
             &mut self,
-            node: &<TicTacToeGame as Game>::Board,
+            node: &<TicTacToeGame as Game>::B,
             depth: usize,
             a: f64,
             b: f64,
@@ -347,7 +362,7 @@ mod alpha_beta {
                 // println!("Leaf node board\n {node} gets score {s}, at {depth}. Compare with {a} and {b}");
                 return s;
             }
-            let moves = node.empty_addresses();
+            let moves = node.valid_moves();
             let mut a = a;
             let mut b = b;
             let my_marker = self.my_marker; // take a copy here
@@ -356,7 +371,7 @@ mod alpha_beta {
                 let mut value = -f64::INFINITY;
                 let child_nodes = moves.iter().map(|addr| {
                     let mut child = *node;
-                    child.place(*addr, my_marker);
+                    child.place(addr.0, my_marker);
                     child
                 });
                 for child in child_nodes {
@@ -373,7 +388,7 @@ mod alpha_beta {
                 let mut value = f64::INFINITY;
                 let child_nodes = moves.iter().map(|addr| {
                     let mut child = *node;
-                    child.place(*addr, my_marker.other());
+                    child.place(addr.0, my_marker.other());
                     child
                 });
                 for child in child_nodes {
@@ -389,19 +404,19 @@ mod alpha_beta {
     }
 
     impl Player<TicTacToeGame> for ABAi {
-        fn play(&mut self, b: &<TicTacToeGame as Game>::Board) -> crate::Action {
+        fn play(&mut self, b: &<TicTacToeGame as Game>::B) -> crate::Action {
             let res = b
-                .empty_addresses()
+                .valid_moves()
                 .iter()
                 .map(|addr| {
                     let mut b2 = *b;
-                    b2.place(*addr, self.my_marker);
+                    b2.place(addr.0, self.my_marker);
                     let score = self.alphabeta(&b2, 10, -f64::INFINITY, f64::INFINITY, false);
                     (score, addr)
                 })
                 // .inspect(|x| println!("about to pick the best: {x:?}"))
                 .max_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal))
-                .map(|(_, &q)| Action::move_at(q))
+                .map(|(_, &q)| q)
                 .expect("At least one element");
             println!("Up to {} heuristic evaluations", self.n_leafs_evaluated);
             res
@@ -419,14 +434,14 @@ mod alpha_beta {
             let b = Board::from_str("   xx    ");
             let mut ai = ABAi::new(crate::PlayerMark::Cross);
             let action = ai.play(&b);
-            assert!(action == Action::MoveAt(6))
+            assert_eq!(action, Action(6))
         }
         #[test]
         fn can_block_winning_move() {
             let b = Board::from_str("oo  x    ");
             let mut ai = ABAi::new(crate::PlayerMark::Cross);
             let action = ai.play(&b);
-            assert_eq!(action, Action::MoveAt(3))
+            assert_eq!(action, Action(3))
         }
     }
 }
@@ -453,7 +468,7 @@ mod min_max {
         /// If we can win, we want to win fast,
         /// If we must lose or tie, we want to lose slowly
         /// It is always good to hold the mid point
-        fn heuristic(&mut self, b: &<TicTacToeGame as Game>::Board) -> f64 {
+        fn heuristic(&mut self, b: &<TicTacToeGame as Game>::B) -> f64 {
             self.n_leafs_evaluated += 1;
             let n_moves_made: f64 = b.n_moves_made();
             match b.winner() {
@@ -472,7 +487,7 @@ mod min_max {
         /// Assumes I want to maximize my score, and the opponent makes moves to minimize it
         fn minimax(
             &mut self,
-            node: &<TicTacToeGame as Game>::Board,
+            node: &<TicTacToeGame as Game>::B,
             depth: usize,
             my_move: bool,
         ) -> f64 {
@@ -481,14 +496,14 @@ mod min_max {
                 // println!("Leaf node board\n {node} gets score {s}, at {depth}. Compare with {a} and {b}");
                 return s;
             }
-            let moves = node.empty_addresses();
+            let moves = node.valid_moves();
             let my_marker = self.my_marker; // take a copy here
             if my_move {
                 // In this branch, the AI tries to find a move for itself that would maximize the score
                 let mut value = -f64::INFINITY;
                 let child_nodes = moves.iter().map(|addr| {
                     let mut child = *node;
-                    child.place(*addr, my_marker);
+                    child.place(addr.0, my_marker);
                     child
                 });
                 for child in child_nodes {
@@ -501,7 +516,7 @@ mod min_max {
                 let mut value = f64::INFINITY;
                 let child_nodes = moves.iter().map(|addr| {
                     let mut child = *node;
-                    child.place(*addr, my_marker.other());
+                    child.place(addr.0, my_marker.other());
                     child
                 });
                 for child in child_nodes {
@@ -513,18 +528,18 @@ mod min_max {
     }
 
     impl Player<TicTacToeGame> for MinMaxAi {
-        fn play(&mut self, b: &<TicTacToeGame as Game>::Board) -> crate::Action {
+        fn play(&mut self, b: &<TicTacToeGame as Game>::B) -> crate::Action {
             let res = b
-                .empty_addresses()
+                .valid_moves()
                 .iter()
                 .map(|addr| {
                     let mut b2 = *b;
-                    b2.place(*addr, self.my_marker);
+                    b2.place(addr.0, self.my_marker);
                     let score = self.minimax(&b2, 10, false);
                     (score, addr)
                 })
                 .max_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal))
-                .map(|(_, &q)| Action::move_at(q))
+                .map(|(_, &q)| q)
                 .expect("At least one element");
             println!("Up to {} heuristic evaluations", self.n_leafs_evaluated);
             res
@@ -542,24 +557,33 @@ mod min_max {
             let b = Board::from_str("   xx    ");
             let mut ai = ABAi::new(crate::PlayerMark::Cross);
             let action = ai.play(&b);
-            assert!(action == Action::MoveAt(6))
+            assert_eq!(action, Action(6))
         }
         #[test]
         fn can_block_winning_move() {
             let b = Board::from_str("oo  x    ");
             let mut ai = ABAi::new(crate::PlayerMark::Cross);
             let action = ai.play(&b);
-            assert_eq!(action, Action::MoveAt(3))
+            assert_eq!(action, Action(3))
         }
     }
 }
 
 use clap::{Parser, ValueEnum};
+use console_player::ConsolePlayer;
 use min_max::MinMaxAi;
+use random_ai::RandomAi;
 use tictactoe::TicTacToeGame;
 
 pub(crate) trait Game {
-    type Board;
+    type B: Board;
+}
+
+trait Board {
+    /// Actions that can be taken on this board
+    /// They should be some simple kind of data, so they must implement Copy
+    type A: Copy;
+    fn valid_moves(&self) -> Vec<Self::A>;
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
