@@ -15,7 +15,7 @@ impl ConsolePlayer {
     }
 }
 impl Player<TicTacToe> for ConsolePlayer {
-    fn play(&mut self, b: &<TicTacToe as Game>::Board) -> tictactoe::Action {
+    fn play(&mut self, b: &<TicTacToe as Game>::Board) -> tictactoe::TTTAddr {
         println!("Time for {} to make a move", self.name);
         print!("{}", b);
         println!("Input a number 1-9 to make a move 1 = top left, 9 = bottom right");
@@ -33,7 +33,7 @@ impl Player<TicTacToe> for ConsolePlayer {
             eprintln!("Number not in range 1-N_SQUARES");
         }
         println!("Got {}", num);
-        tictactoe::Action(num)
+        tictactoe::TTTAddr(num)
     }
 }
 impl Player<UltimateTicTacToe> for ConsolePlayer {

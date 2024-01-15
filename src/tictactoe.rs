@@ -1,33 +1,18 @@
 use crate::core::Board as BoardTrait;
 use super::Game;
 use super::{Player, PlayerMark};
-const BOARD_SIZE: usize = 3; // If I want to change board size in the future, this variable may be useful. But as of now, there are several hard coded rules fixed to the 3x3 setting
-const N_SQUARES: usize = BOARD_SIZE * BOARD_SIZE;
 
-/// To play at a certain coordinate, you wrap a number representing the coordinate in `Action::MoveAt(number)`
-/// The coordinate numbers for e 3x3 game are
+/// Represents a coordinate on the board
 ///
 ///  1 2 3
 ///  4 5 6
 ///  7 8 9
 ///
-/// Like the numbers on a phone. :)
-///
-///
-/// invariant: the number inside must be 1-N_SQUARES
+/// invariant: the number inside must be 1-9
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct Action(pub usize);
-impl Action {
-    pub fn move_at(idx: usize) -> Action {
-        if (1..=N_SQUARES).contains(&idx) {
-            Action(idx)
-        } else {
-            panic!("Tried to make an invalid move. Must be 1-N_SQUARES, but got {idx}")
-        }
-    }
-}
+pub struct TTTAddr(pub usize);
 
-impl std::fmt::Display for Action {
+impl std::fmt::Display for TTTAddr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", self.0)
     }
@@ -38,13 +23,13 @@ impl std::fmt::Display for Action {
 /// Someone wins on a +3 or -3.
 /// It holds 8 numbers: 3 rows (top to bottom), 3 columns (left to rifht) and two diagonals (first the one that points to southeast, and the the one to northeast)
 #[derive(Clone, Copy, Debug)]
-pub struct Board([Marker; N_SQUARES], [i32; 8]);
+pub struct Board([Marker; 9], [i32; 8]);
 
-impl crate::core::Board<Action> for Board {
-    fn valid_moves(&self) -> Vec<Action> {
+impl crate::core::Board<TTTAddr> for Board {
+    fn valid_moves(&self) -> Vec<TTTAddr> {
         self.empty_addresses()
             .iter()
-            .map(|&q| Action::move_at(q))
+            .map(|&q| TTTAddr(q))
             .collect()
     }
     fn game_over(&self) -> bool {
@@ -52,7 +37,7 @@ impl crate::core::Board<Action> for Board {
         let won = self.winner().is_some();
         won || board_full
     }
-    fn place_mark(&mut self, a: Action, marker: PlayerMark) {
+    fn place_mark(&mut self, a: TTTAddr, marker: PlayerMark) {
         self.place(a.0, marker)
     }
 }
@@ -72,7 +57,7 @@ impl Board {
         }
     }
     pub fn place(&mut self, addr: usize, p: PlayerMark) {
-        if !(1..=N_SQUARES).contains(&addr) {
+        if !(1..=9).contains(&addr) {
             panic!("Bad input!")
         }
         let num = addr - 1;
@@ -99,7 +84,7 @@ impl Board {
     #[cfg(test)]
     pub fn from_str(s: &str) -> Self {
         let mut b: Self = Self::new();
-        assert!(s.len() == N_SQUARES);
+        assert!(s.len() == 9);
         s.chars().enumerate().for_each(|(num, c)| match c {
             'x' => b.place(num + 1, PlayerMark::Cross),
             'o' => b.place(num + 1, PlayerMark::Naught),
@@ -110,10 +95,10 @@ impl Board {
     }
 
     fn new() -> Self {
-        Self([None; N_SQUARES], [0; 8])
+        Self([None; 9], [0; 8])
     }
 
-    /// with the 1-N_SQUARES convention
+    /// with the 1-9 convention
     fn empty_addresses(&self) -> Vec<usize> {
         self.0
             .iter()
@@ -146,7 +131,7 @@ impl std::fmt::Display for Board {
             .try_for_each(|&mark| write!(f, "{} ", m(mark)))?;
         writeln!(f, "|")?;
         write!(f, "| ")?;
-        self.0[6..N_SQUARES]
+        self.0[6..9]
             .iter()
             .try_for_each(|&mark| write!(f, "{} ", m(mark)))?;
         writeln!(f, "|")?;
@@ -164,7 +149,7 @@ pub struct TicTacToe {
 
 impl Game for TicTacToe {
     type Board = Board;
-    type Coordinate = Action;
+    type Coordinate = TTTAddr;
     fn run(&mut self) {
         let mut is_naught = true;
         while self.is_running() {
@@ -198,14 +183,14 @@ impl TicTacToe {
         }
     }
 
-    fn update(&mut self, a: Action, is_naught: bool) {
+    fn update(&mut self, a: TTTAddr, is_naught: bool) {
         let player_mark = if is_naught {
             PlayerMark::Naught
         } else {
             PlayerMark::Cross
         };
         match a {
-            Action(num) => {
+            TTTAddr(num) => {
                 println!("Player {player_mark:?} placed marker at {num}");
                 self.board.place(num, player_mark);
             }

@@ -114,7 +114,7 @@ impl<G: Game> Player<G> for ABAi<G> {
 #[cfg(test)]
 mod test {
     use crate::{
-        tictactoe::Action,
+        tictactoe::TTTAddr,
         tictactoe::{Board, TicTacToe},
         ttt_heuristic, Player,
     };
@@ -126,13 +126,13 @@ mod test {
         let b = Board::from_str("   xx    ");
         let mut ai = ABAi::<TicTacToe>::new(crate::PlayerMark::Cross, ttt_heuristic, 10);
         let action = ai.play(&b);
-        assert_eq!(action, Action(6))
+        assert_eq!(action, TTTAddr(6))
     }
     #[test]
     fn can_block_winning_move() {
         let b = Board::from_str("oo  x    ");
         let mut ai = ABAi::<TicTacToe>::new(crate::PlayerMark::Cross, ttt_heuristic, 10);
         let action = ai.play(&b);
-        assert_eq!(action, Action(3))
+        assert_eq!(action, TTTAddr(3))
     }
 }
