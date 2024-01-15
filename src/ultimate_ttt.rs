@@ -215,7 +215,7 @@ impl TryFrom<(usize, usize, usize, usize)> for Action {
 
 impl Game for UltimateTicTacToe {
     type Board = Board;
-    type Action = Action;
+    type Coordinate = Action;
     fn run(&mut self) {
         while self.board.winner.is_none() {
             let action = if self.turn == PlayerMark::Naught {

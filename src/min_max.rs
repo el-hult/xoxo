@@ -1,8 +1,6 @@
 use crate::core::{Board, Game, Player, PlayerMark, HeuristicFn};
 
-pub struct MinMaxAi<G>
-where
-    G: Game,
+pub struct MinMaxAi<G:Game>
 {
     my_marker: PlayerMark,
     /// A performance counter. If we prune well, this number is small
@@ -77,7 +75,7 @@ impl<G:Game> MinMaxAi<G>
 
 impl<G:Game> Player<G> for MinMaxAi<G>
 {
-    fn play(&mut self, b: &G::Board) -> G::Action {
+    fn play(&mut self, b: &G::Board) -> G::Coordinate {
         let res = b
             .valid_moves()
             .iter()

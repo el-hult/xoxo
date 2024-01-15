@@ -27,23 +27,25 @@ where
 {
     /// The play function is the main mechanic for the AIs
     /// You observe the whole board through a reference, and can do whatever you like, and then you return an action representing where to play
-    fn play(&mut self, b: &G::Board) -> G::Action;
+    fn play(&mut self, b: &G::Board) -> G::Coordinate;
 }
 
 
 pub type HeuristicFn<G> = fn(PlayerMark, &<G as Game>::Board) -> f64;
 
 
+/// All games in this project is about placing PlayerMarker on a board
+/// The markers are either crosses or naughts, symbolizing the two players
 pub trait Game {
-    type Action: Copy + Display;
-    type Board: Board<Self::Action> + Copy;
+    /// The coordinate type is the type of the coordinates on the board
+    type Coordinate: Copy + Display;
+    type Board: Board<Self::Coordinate> + Copy;
     fn run(&mut self);
 }
 
-pub trait Board<Action>: Display {
-    /// Actions that can be taken on this board
-    /// They should be some simple kind of data, so they must implement Copy
-    fn valid_moves(&self) -> Vec<Action>;
-    fn place_mark(&mut self, a: Action, marker: PlayerMark);
+pub trait Board<Coordinate>: Display {
+    /// The coordinates where you are allowed to place your marker in this turn.
+    fn valid_moves(&self) -> Vec<Coordinate>;
+    fn place_mark(&mut self, a: Coordinate, marker: PlayerMark);
     fn game_over(&self) -> bool;
 }

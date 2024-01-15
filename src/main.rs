@@ -1,17 +1,17 @@
 mod alpha_beta;
 mod console_player;
+mod core;
 mod min_max;
 mod random_ai;
 mod tictactoe;
 mod ultimate_ttt;
-mod core;
 
 use alpha_beta::ABAi;
 use clap::{Parser, ValueEnum};
 use console_player::ConsolePlayer;
+use core::{Game, Player, PlayerMark};
 use min_max::MinMaxAi;
 use random_ai::RandomAi;
-use core::{PlayerMark, Game, Player};
 use std::{fmt::Display, io::BufRead};
 use tictactoe::TicTacToe;
 use ultimate_ttt::UltimateTicTacToe;
@@ -74,12 +74,13 @@ fn ttt_heuristic(my_marker: PlayerMark, b: &<TicTacToe as Game>::Board) -> f64 {
 }
 fn uttt_heuristic(my_marker: PlayerMark, b: &<UltimateTicTacToe as Game>::Board) -> f64 {
     let n_moves_made: f64 = b.n_moves_made() as f64;
-    let n_supboards_won = b
+    let n_supboards_won = (b
         .get_sup_board()
         .iter()
         .flatten()
         .filter(|&&x| x == ultimate_ttt::BoardStatus::Won(my_marker))
-        .count() as f64;
+        .count() as f64)
+        * 30.0;
     match b.get_winner() {
         None => 0.0 + n_moves_made + n_supboards_won,
         Some(None) => 0.0 + n_moves_made + n_supboards_won,

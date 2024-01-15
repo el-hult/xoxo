@@ -11,7 +11,7 @@ where
     Rng: rand::Rng,
     G: Game,
 {
-    fn play(&mut self, b: &G::Board) -> G::Action {
+    fn play(&mut self, b: &G::Board) -> G::Coordinate {
         let moves: Vec<_> = b.valid_moves();
         let idx = self.rng.next_u32() as usize % moves.len();
         println!("Random AI `{}` plays {}", self.name, moves[idx]);

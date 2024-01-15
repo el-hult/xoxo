@@ -164,7 +164,7 @@ pub struct TicTacToe {
 
 impl Game for TicTacToe {
     type Board = Board;
-    type Action = Action;
+    type Coordinate = Action;
     fn run(&mut self) {
         let mut is_naught = true;
         while self.is_running() {
