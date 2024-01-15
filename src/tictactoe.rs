@@ -1,4 +1,4 @@
-use super::Board as boardTrait;
+use crate::core::Board as BoardTrait;
 use super::Game;
 use super::{Player, PlayerMark};
 const BOARD_SIZE: usize = 3; // If I want to change board size in the future, this variable may be useful. But as of now, there are several hard coded rules fixed to the 3x3 setting
@@ -40,7 +40,7 @@ impl std::fmt::Display for Action {
 #[derive(Clone, Copy, Debug)]
 pub struct Board([Marker; N_SQUARES], [i32; 8]);
 
-impl super::Board for Board {
+impl crate::core::Board for Board {
     type A = Action;
     fn valid_moves(&self) -> Vec<Self::A> {
         self.empty_addresses()
@@ -216,3 +216,4 @@ impl TicTacToeGame {
         !self.board.game_over()
     }
 }
+

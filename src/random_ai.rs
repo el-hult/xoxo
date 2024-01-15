@@ -1,5 +1,6 @@
 
 use super::*;
+use crate::core::Board;
 pub struct RandomAi<Rng> {
     rng: Rng,
     pub name: String,

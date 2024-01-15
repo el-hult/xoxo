@@ -1,4 +1,4 @@
-use super::*;
+use super::core::{Board, Game, HeuristicFn, Player, PlayerMark};
 
 pub struct ABAi<G>
 where

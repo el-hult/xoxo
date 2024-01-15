@@ -1,3 +1,5 @@
+use crate::core::Board;
+
 use super::*;
 
 pub struct UltimateTicTacToe {
