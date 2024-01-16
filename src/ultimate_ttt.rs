@@ -76,6 +76,18 @@ impl Board {
         &self.sup_board
     }
 
+    /// The next move must be placed in this sub-board
+    /// indexed 0-2
+    pub fn target_board(&self) -> Option<(usize,usize)> {
+        self.last_action.map(|a| 
+            if self.sup_board[a.position.0][a.position.1] == BoardStatus::Running {
+                Some(a.position)
+            } else {
+                None
+            }
+        ).flatten()
+    }
+
     /// Mark the given position with the given player mark in the sub-board
     /// and if someone won that sub-board, mark the position in the sup-board
     /// and if someone won the sup-board, mark the winner
@@ -177,6 +189,10 @@ impl Board {
             .flatten()
             .filter(|&x| x.is_some())
             .count()
+    }
+
+    pub(crate) fn get_board(&self) -> &[[[[Option<PlayerMark>; 3]; 3]; 3]; 3] {
+        &self.board
     }
 }
 

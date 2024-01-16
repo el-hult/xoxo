@@ -37,10 +37,15 @@ impl Player<TicTacToe> for ConsolePlayer {
     }
 }
 impl Player<UltimateTicTacToe> for ConsolePlayer {
-    fn play(&mut self, b: &<UltimateTicTacToe as Game>::Board) -> ultimate_ttt::Action {
+    fn play(&mut self, b: &ultimate_ttt::Board) -> ultimate_ttt::Action {
         println!("Time for {} to make a move", self.name);
         print!("{}", b);
         println!("Input four numbers 1-2 to make a move 1 = top left, 2 = bottom right");
+        if let Some(target_board) = b.target_board() {
+            println!("You must play in board {},{}", target_board.0 + 1, target_board.1 + 1);
+        } else {
+            println!("You can play in any board");
+        }
         println!("board-row board-col pos-row pos-col");
         let mut line = String::new();
         std::io::stdin()
