@@ -57,6 +57,10 @@ struct Args {
     /// Only used for alpha-beta ai, if used
     #[arg(long, default_value = "8")]
     ab_depth: usize,
+
+    /// The seed for the random number generator (when used)
+    #[arg(long)]
+    seed: Option<u64>,
 }
 
 fn ttt_heuristic(my_marker: PlayerMark, b: &<TicTacToe as Game>::Board) -> f64 {
@@ -98,9 +102,10 @@ fn main() {
     let args = Args::parse();
     match args.game {
         GameType::Ttt => {
-            let p1: Box<dyn Player<TicTacToe>> = match args.p1 {
+            type G = TicTacToe;
+            let p1: Box<dyn Player<G>> = match args.p1 {
                 PlayerType::Console => Box::new(ConsolePlayer::new(PlayerMark::Naught)),
-                PlayerType::Random => Box::new(RandomAi::new(PlayerMark::Naught)),
+                PlayerType::Random => Box::new(RandomAi::new(PlayerMark::Naught,args.seed)),
                 PlayerType::Minimax => Box::new(MinMaxAi::new(
                     PlayerMark::Naught,
                     ttt_heuristic,
@@ -110,9 +115,9 @@ fn main() {
                     Box::new(ABAi::new(PlayerMark::Naught, ttt_heuristic, args.ab_depth))
                 }
             };
-            let p2: Box<dyn Player<TicTacToe>> = match args.p2 {
+            let p2: Box<dyn Player<G>> = match args.p2 {
                 PlayerType::Console => Box::new(ConsolePlayer::new(PlayerMark::Cross)),
-                PlayerType::Random => Box::new(RandomAi::new(PlayerMark::Cross)),
+                PlayerType::Random => Box::new(RandomAi::new(PlayerMark::Cross,args.seed)),
                 PlayerType::Minimax => Box::new(MinMaxAi::new(
                     PlayerMark::Cross,
                     ttt_heuristic,
@@ -122,13 +127,14 @@ fn main() {
                     Box::new(ABAi::new(PlayerMark::Cross, ttt_heuristic, args.ab_depth))
                 }
             };
-            let mut g = TicTacToe::new(p1, p2);
+            let mut g = G::new(p1, p2);
             g.run()
         }
         GameType::Uttt => {
-            let p1: Box<dyn Player<UltimateTicTacToe>> = match args.p1 {
+            type G = UltimateTicTacToe;
+            let p1: Box<dyn Player<G>> = match args.p1 {
                 PlayerType::Console => Box::new(ConsolePlayer::new(PlayerMark::Naught)),
-                PlayerType::Random => Box::new(RandomAi::new(PlayerMark::Naught)),
+                PlayerType::Random => Box::new(RandomAi::new(PlayerMark::Naught,args.seed)),
                 PlayerType::Minimax => Box::new(MinMaxAi::new(
                     PlayerMark::Naught,
                     uttt_heuristic,
@@ -138,9 +144,9 @@ fn main() {
                     Box::new(ABAi::new(PlayerMark::Naught, uttt_heuristic, args.ab_depth))
                 }
             };
-            let p2: Box<dyn Player<UltimateTicTacToe>> = match args.p2 {
+            let p2: Box<dyn Player<G>> = match args.p2 {
                 PlayerType::Console => Box::new(ConsolePlayer::new(PlayerMark::Cross)),
-                PlayerType::Random => Box::new(RandomAi::new(PlayerMark::Cross)),
+                PlayerType::Random => Box::new(RandomAi::new(PlayerMark::Cross,args.seed)),
                 PlayerType::Minimax => Box::new(MinMaxAi::new(
                     PlayerMark::Cross,
                     uttt_heuristic,
@@ -150,7 +156,7 @@ fn main() {
                     Box::new(ABAi::new(PlayerMark::Cross, uttt_heuristic, args.ab_depth))
                 }
             };
-            let mut g = UltimateTicTacToe::new(p1, p2);
+            let mut g = G::new(p1, p2);
             g.run()
         }
     };

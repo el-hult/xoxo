@@ -1,8 +1,10 @@
 
+use rand::{rngs::StdRng, SeedableRng};
+
 use super::*;
 use crate::core::Board;
-pub struct RandomAi<Rng> {
-    rng: Rng,
+pub struct RandomAi<R> {
+    rng: R,
     pub name: String,
 }
 
@@ -19,14 +21,17 @@ where
     }
 }
 
-impl RandomAi<rand::prelude::ThreadRng> {
-    pub fn new(mark: PlayerMark) -> Self {
+impl RandomAi<rand::prelude::StdRng> {
+    pub fn new(mark: PlayerMark, seed: Option<u64>) -> Self {
         Self {
             name: match mark {
                 PlayerMark::Cross => "X".into(),
                 PlayerMark::Naught => "O".into(),
             },
-            rng: rand::thread_rng(),
+            rng: match seed {
+                None => StdRng::from_entropy(),
+                Some(seed) => StdRng::seed_from_u64(seed)
+            }
         }
     }
 }
