@@ -89,13 +89,11 @@ fn uttt_heuristic(my_marker: PlayerMark, b: &<UltimateTicTacToe as Game>::Board)
     let midpoint_balance = {
         let board = b.get_board();
         let mut n = 0;
-        for i in 0..3 {
-            for j in 0..3 {
-                n += match board[i][j][1][1] {
-                    None => 0,
-                    Some(PlayerMark::Cross) => -1,
-                    Some(PlayerMark::Naught) => 1,
-                }
+        for sub_board in board.iter().flatten() {
+            n += match sub_board[1][1] {
+                None => 0,
+                Some(PlayerMark::Cross) => -1,
+                Some(PlayerMark::Naught) => 1,
             }
         }
         n as f64

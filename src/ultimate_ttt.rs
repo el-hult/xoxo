@@ -79,13 +79,12 @@ impl Board {
     /// The next move must be placed in this sub-board
     /// indexed 0-2
     pub fn target_board(&self) -> Option<(usize,usize)> {
-        self.last_action.map(|a| 
+        self.last_action.and_then(|a| 
             if self.sup_board[a.position.0][a.position.1] == BoardStatus::Running {
                 Some(a.position)
             } else {
                 None
-            }
-        ).flatten()
+            })
     }
 
     /// Mark the given position with the given player mark in the sub-board
