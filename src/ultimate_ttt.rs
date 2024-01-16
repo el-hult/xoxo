@@ -229,7 +229,7 @@ impl Game for UltimateTicTacToe {
         if let Some(p) = self.board.winner {
             println!("Player {:?} won", p);
         }
-        println!("Game over.");
+        println!("Game over. The game lasted {} moves. Thanks for playing!", self.board.n_moves_made());
     }
 }
 

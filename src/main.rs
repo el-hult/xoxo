@@ -78,24 +78,27 @@ fn ttt_heuristic(my_marker: PlayerMark, b: &<TicTacToe as Game>::Board) -> f64 {
 }
 fn uttt_heuristic(my_marker: PlayerMark, b: &<UltimateTicTacToe as Game>::Board) -> f64 {
     let n_moves_made: f64 = b.n_moves_made() as f64;
-    let n_supboards_won = (b
+    let n_supboards_won = b
         .get_sup_board()
         .iter()
         .flatten()
         .filter(|&&x| x == ultimate_ttt::BoardStatus::Won(my_marker))
-        .count() as f64)
-        * 30.0;
-    match b.get_winner() {
-        None => 0.0 + n_moves_made + n_supboards_won,
-        Some(None) => 0.0 + n_moves_made + n_supboards_won,
+        .count() as f64
+        ;
+    let did_win_mid_supboard = (b
+        .get_sup_board()[1][1] == ultimate_ttt::BoardStatus::Won(my_marker)) as u8 as f64;
+    let win_bonus = match b.get_winner() {
+        None => 0.0,
+        Some(None) => -100.0,
         Some(Some(mark)) => {
             if mark == my_marker {
-                1000.0 - n_moves_made + n_supboards_won
+                1000.0
             } else {
-                -1000.0 + n_moves_made + n_supboards_won
+                -1000.0
             }
         }
-    }
+    };
+    win_bonus + n_moves_made*1.0 + n_supboards_won* 30.0 + did_win_mid_supboard* 30.0
 }
 
 fn main() {
