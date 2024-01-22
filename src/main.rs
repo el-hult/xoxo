@@ -12,7 +12,7 @@ use console_player::ConsolePlayer;
 use core::{Game, Player, PlayerMark};
 use min_max::MinMaxAi;
 use random_ai::RandomAi;
-use std::{fmt::Display, io::BufRead};
+use std::{f64::INFINITY, fmt::Display, io::BufRead};
 use tictactoe::TicTacToe;
 use ultimate_ttt::UltimateTicTacToe;
 
@@ -76,14 +76,29 @@ fn ttt_heuristic(my_marker: PlayerMark, b: &<TicTacToe as Game>::Board) -> f64 {
         }
     }
 }
+/// A variant of the heurstic of Powell and Merrill for Ultimate Tic-Tac-Toe
+/// Mentioned in the thread https://boardgames.stackexchange.com/questions/49291/strategy-for-ultimate-tic-tac-toe
+/// two papers on the topic are referred to:
+/// https://www.cs.huji.ac.il/%7Eai/projects/2013/UlitmateTic-Tac-Toe/files/report.pdf
+/// http://smpowell.com/wp-content/uploads/2021/07/Powell_Merrill_FinalPaper.pdf
+///
 fn uttt_heuristic(my_marker: PlayerMark, b: &<UltimateTicTacToe as Game>::Board) -> f64 {
     let n_moves_made: f64 = b.n_moves_made() as f64;
-    let n_supboards_won = b
+    let n_supboards_win_balance: isize = b
         .get_sup_board()
         .iter()
         .flatten()
-        .filter(|&&x| x == ultimate_ttt::BoardStatus::Won(my_marker))
-        .count() as f64;
+        .map(|&x| match x {
+            ultimate_ttt::BoardStatus::Won(marker) => {
+                if marker == my_marker {
+                    1
+                } else {
+                    -1
+                }
+            }
+            _ => 0,
+        })
+        .sum();
     let did_win_mid_supboard =
         (b.get_sup_board()[1][1] == ultimate_ttt::BoardStatus::Won(my_marker)) as u8 as f64;
     let midpoint_balance = {
@@ -100,18 +115,18 @@ fn uttt_heuristic(my_marker: PlayerMark, b: &<UltimateTicTacToe as Game>::Board)
     };
     let win_bonus = match b.get_winner() {
         None => 0.0,
-        Some(None) => -100.0,
+        Some(None) => 0.0,
         Some(Some(mark)) => {
             if mark == my_marker {
-                1000.0
+                INFINITY
             } else {
-                -1000.0
+                -INFINITY
             }
         }
     };
     win_bonus
         + n_moves_made * 1.0
-        + n_supboards_won * 30.0
+        + n_supboards_win_balance as f64 * 100.0
         + did_win_mid_supboard * 30.0
         + 10.0 * midpoint_balance
 }
