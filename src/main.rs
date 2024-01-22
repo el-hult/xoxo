@@ -5,6 +5,7 @@ mod min_max;
 mod random_ai;
 mod tictactoe;
 mod ultimate_ttt;
+mod mcts;
 
 use alpha_beta::ABAi;
 use clap::{Parser, ValueEnum};
