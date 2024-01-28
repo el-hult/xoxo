@@ -13,13 +13,15 @@ const INFINITY: Ucb = f64::INFINITY;
 type NodePtr<Action, State> = Rc<RefCell<TreeNode<Action, State>>>;
 type Counter = f64;
 
-trait GameState: Sized + Copy {
+trait MCTSState: Sized + Copy {
     type Action;
     fn act(self, action: &Self::Action) -> Self;
     fn is_win(&self) -> bool;
     fn is_loss(&self) -> bool;
     fn allowed_actions(&self) -> Vec<Self::Action>;
-    fn rollout(&self) -> bool {
+    /// If the game branch factor is large, this random strategy is bad, since it will explore very inefficiently
+    /// What better enginges do is to use some heuristic for the Q-function to do the rollout.
+    fn random_rollout(&self) -> bool {
         let mut state: Self = *self;
         loop {
             let actions = state.allowed_actions();
@@ -45,7 +47,7 @@ struct TreeNode<Action, State> {
 
 impl<Action, State> TreeNode<Action, State>
 where
-    State: Clone + GameState<Action = Action>,
+    State: Clone + MCTSState<Action = Action>,
     Action: Clone,
 {
     fn new(state: State) -> Rc<RefCell<Self>> {
@@ -77,7 +79,7 @@ where
     }
     // Return 1 for win, 0 for not-win
     fn simulate(&self) -> Counter {
-        match self.state.rollout() {
+        match self.state.random_rollout() {
             true => 1.0,
             false => 0.0,
         }
@@ -104,7 +106,7 @@ where
 }
 fn step_mcts<Action, State>(root: &NodePtr<Action, State>)
 where
-    State: Clone + GameState<Action = Action>,
+    State: Clone + MCTSState<Action = Action>,
     Action: Clone,
 {
     // 1. Selection
@@ -172,7 +174,7 @@ mod test {
         Add,
         Sub,
     }
-    impl GameState for CountGameState {
+    impl MCTSState for CountGameState {
         type Action = CountGameAction;
         fn is_win(&self) -> bool {
             self.0 == 100
