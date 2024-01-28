@@ -8,8 +8,8 @@ use std::{
     rc::Rc,
 };
 
-type UCB = f64;
-const INFINITY: UCB = f64::INFINITY;
+type Ucb = f64;
+const INFINITY: Ucb = f64::INFINITY;
 type NodePtr<Action, State> = Rc<RefCell<TreeNode<Action, State>>>;
 type Counter = f64;
 
@@ -38,7 +38,7 @@ trait GameState: Sized + Copy {
 struct TreeNode<Action, State> {
     parent: Option<NodePtr<Action, State>>,
     state: State,
-    children: Vec<(Action, UCB, NodePtr<Action, State>)>,
+    children: Vec<(Action, Ucb, NodePtr<Action, State>)>,
     wins: Counter,
     visits: Counter,
 }
@@ -58,7 +58,7 @@ where
         }))
     }
     fn add_child(parent: NodePtr<Action, State>, m: Action) {
-        let child_state = parent.borrow().state.clone().act(&m);
+        let child_state = parent.borrow().state.act(&m);
         let child = TreeNode::new(child_state);
         child.borrow_mut().parent = Some(parent.clone());
         parent.borrow_mut().children.push((m, INFINITY, child));
@@ -71,7 +71,7 @@ where
     }
     fn expand_children(self_ptr: NodePtr<Action, State>) {
         let actions = self_ptr.borrow().state.allowed_actions();
-        let state = actions.into_iter().for_each(|m| {
+        actions.into_iter().for_each(|m| {
             TreeNode::add_child(self_ptr.clone(), m);
         });
     }
