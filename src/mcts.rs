@@ -6,42 +6,43 @@ use std::fmt::Debug;
 
 use rand::prelude::SliceRandom;
 
-trait MDPState: Sized + Copy + PartialEq {
+trait Mdp {
     type Action: Copy + Debug + PartialEq;
+    type State: Sized + Debug + Copy + PartialEq;
     const DISCOUNT_FACTOR: f64; // 1= no discount, 0=only immediate reward
-    fn act(self, action: &Self::Action) -> (Self, f64); // This is sampling from the Sutton&Barto's p(s',r|s,a), equation 3.2
-    fn is_terminal(&self) -> bool;
-    fn allowed_actions(&self) -> Vec<Self::Action>;
+    fn act(s: Self::State, action: &Self::Action) -> (Self::State, f64); // This is sampling from the Sutton&Barto's p(s',r|s,a), equation 3.2
+    fn is_terminal(s: &Self::State) -> bool;
+    fn allowed_actions(s: &Self::State) -> Vec<Self::Action>;
     /// If the game branch factor is large, this random strategy is bad, since it will explore very inefficiently
     /// What better enginges do is to use some heuristic for the Q-function to do the rollout.
-    fn rollout(&self) -> f64 {
-        let actions = self.allowed_actions();
+    fn rollout(s: &Self::State) -> f64 {
+        let actions = Self::allowed_actions(s);
         let action = actions.choose(&mut rand::thread_rng()).unwrap();
-        let (state, reward) = self.act(action);
-        if state.is_terminal() {
+        let (state, reward) = Self::act(*s, action);
+        if Self::is_terminal(&state) {
             reward
         } else {
-            reward + Self::DISCOUNT_FACTOR * state.rollout()
+            reward + Self::DISCOUNT_FACTOR * Self::rollout(&state)
         }
     }
 }
 
 #[derive(Debug, PartialEq)]
-struct ActionNode<State: MDPState> {
-    action: State::Action,
+struct ActionNode<T: Mdp> {
+    action: T::Action,
     tot_reward: f64,
     visits: f64, // visits might be 1 more than the sum of the childrens visits, since the first visist is a MCTS rollout visit
-    children: Vec<StateNode<State>>,
+    children: Vec<StateNode<T>>,
 }
 
-impl<S: MDPState> ActionNode<S> {
+impl<S: Mdp> ActionNode<S> {
     /// If we took the action in `self` from a certain state,
     /// we will make a mcts step down. That means either
     /// 1. step into a node that was already expanded, then step in to that State node, continue with the node selection (MCTS phase 1)
     /// 2. step into a NEW node. In that case, we make Rollout (MCTS phase 3)
     /// Return the relevant reward observed to the parent
-    fn mcts_step(&mut self, state: S) -> f64 {
-        let (new_state, reward0) = state.act(&self.action);
+    fn mcts_step(&mut self, state: S::State) -> f64 {
+        let (new_state, reward0) = S::act(state, &self.action);
 
         let seen_state_node = self
             .children
@@ -53,7 +54,7 @@ impl<S: MDPState> ActionNode<S> {
             let mut new_child = StateNode::new(new_state);
             new_child.visits = 1.0;
             self.children.push(new_child);
-            new_state.rollout()
+            S::rollout(&new_state)
         };
         let reward = reward0 + S::DISCOUNT_FACTOR * reward1;
         self.tot_reward += reward;
@@ -63,14 +64,14 @@ impl<S: MDPState> ActionNode<S> {
 }
 
 #[derive(Debug, PartialEq)]
-struct StateNode<State: MDPState> {
-    state: State,
-    children: Option<Vec<ActionNode<State>>>,
+struct StateNode<T: Mdp> {
+    state: T::State,
+    children: Option<Vec<ActionNode<T>>>,
     visits: f64,
 }
 
-impl<S: MDPState> StateNode<S> {
-    fn new(state: S) -> Self {
+impl<S: Mdp> StateNode<S> {
+    fn new(state: S::State) -> Self {
         Self {
             state,
             children: None,
@@ -113,7 +114,7 @@ impl<S: MDPState> StateNode<S> {
             panic!("We should not enumerate actions if we already have done so!")
         }
         let mut children = Vec::new();
-        self.state.allowed_actions().into_iter().for_each(|m| {
+        S::allowed_actions(&self.state).into_iter().for_each(|m| {
             children.push(ActionNode {
                 action: m,
                 tot_reward: 0.0,
@@ -130,7 +131,7 @@ impl<S: MDPState> StateNode<S> {
     /// 2. record that you visited this state
     fn mcts_step(&mut self) -> f64 {
         self.visits += 1.0;
-        if self.state.is_terminal() {
+        if S::is_terminal(&self.state) {
             return 0.0; // No actions can be taken from a terminal state. And reward is only given when taking actions.
         }
         if self.children.is_none() {
@@ -171,21 +172,24 @@ mod test {
         Add,
         Sub,
     }
-    impl MDPState for CountGameState {
+    struct CountGameMDP {}
+    impl Mdp for CountGameMDP {
         type Action = CountGameAction;
+        type State = CountGameState;
         const DISCOUNT_FACTOR: f64 = 0.9;
-        fn is_terminal(&self) -> bool {
-            self.0 <= -10 || self.0 >= 10
+        fn is_terminal(s: &CountGameState) -> bool {
+            s.0 <= -10 || s.0 >= 10
         }
-        fn act(mut self, action: &Self::Action) -> (Self, f64) {
+        fn act(s: CountGameState, action: &Self::Action) -> (CountGameState, f64) {
+            let mut s = s;
             match action {
-                CountGameAction::Add => self.0 += thread_rng().gen_range(-1..=3),
-                CountGameAction::Sub => self.0 += thread_rng().gen_range(-3..=1),
+                CountGameAction::Add => s.0 += thread_rng().gen_range(-1..=3),
+                CountGameAction::Sub => s.0 += thread_rng().gen_range(-3..=1),
             };
-            let reward = if self.0 >= 10 { 1.0 } else { 0.0 }; // reward is 1.0 for winning
-            (self, reward)
+            let reward = if s.0 >= 10 { 1.0 } else { 0.0 }; // reward is 1.0 for winning
+            (s, reward)
         }
-        fn allowed_actions(&self) -> Vec<Self::Action> {
+        fn allowed_actions(s: &Self::State) -> Vec<Self::Action> {
             vec![CountGameAction::Add, CountGameAction::Sub]
         }
     }
@@ -193,7 +197,7 @@ mod test {
     // If I take two steps, will both children be visited once?
     #[test]
     fn test_mcts_step() {
-        let mut root = StateNode::new(CountGameState(0));
+        let mut root: StateNode<CountGameMDP> = StateNode::new(CountGameState(0));
         root.mcts_step();
         root.mcts_step();
         let visits: Vec<_> = root.children.unwrap().iter().map(|an| an.visits).collect();
@@ -205,7 +209,7 @@ mod test {
     // If I run the game many times, Have I identified the best move?
     #[test]
     fn test_mcts() {
-        let mut root = StateNode::new(CountGameState(0));
+        let mut root: StateNode<CountGameMDP> = StateNode::new(CountGameState(0));
         for _ in 0..1000 {
             root.mcts_step();
         }
