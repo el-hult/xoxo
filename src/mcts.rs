@@ -2,10 +2,12 @@
 //!
 //! This module is very much work in progress, and is not yet used in the main program.
 
+use std::fmt::Debug;
+
 use rand::prelude::SliceRandom;
 
 trait MDPState: Sized + Copy + PartialEq {
-    type Action: Copy;
+    type Action: Copy + Debug + PartialEq;
     const DISCOUNT_FACTOR: f64; // 1= no discount, 0=only immediate reward
     fn act(self, action: &Self::Action) -> (Self, f64); // This is sampling from the Sutton&Barto's p(s',r|s,a), equation 3.2
     fn is_terminal(&self) -> bool;
@@ -25,18 +27,14 @@ trait MDPState: Sized + Copy + PartialEq {
 }
 
 #[derive(Debug, PartialEq)]
-struct ActionNode<Action, State> {
-    action: Action,
+struct ActionNode<State: MDPState> {
+    action: State::Action,
     tot_reward: f64,
     visits: f64, // visits might be 1 more than the sum of the childrens visits, since the first visist is a MCTS rollout visit
-    children: Vec<StateNode<Action, State>>,
+    children: Vec<StateNode<State>>,
 }
 
-impl<A, S> ActionNode<A, S>
-where
-    S: MDPState<Action = A>,
-    A: Copy,
-{
+impl<S: MDPState> ActionNode<S> {
     /// If we took the action in `self` from a certain state,
     /// we will make a mcts step down. That means either
     /// 1. step into a node that was already expanded, then step in to that State node, continue with the node selection (MCTS phase 1)
@@ -65,17 +63,13 @@ where
 }
 
 #[derive(Debug, PartialEq)]
-struct StateNode<Action, State> {
+struct StateNode<State: MDPState> {
     state: State,
-    children: Option<Vec<ActionNode<Action, State>>>,
+    children: Option<Vec<ActionNode<State>>>,
     visits: f64,
 }
 
-impl<A, S> StateNode<A, S>
-where
-    S: MDPState<Action = A>,
-    A: Copy,
-{
+impl<S: MDPState> StateNode<S> {
     fn new(state: S) -> Self {
         Self {
             state,
@@ -99,7 +93,7 @@ where
     }
 
     /// If you have a list of actions one could take from this state, return a vector with UCB-action pairs
-    fn action_ucbs(&self) -> Option<Vec<(A, f64)>> {
+    fn action_ucbs(&self) -> Option<Vec<(S::Action, f64)>> {
         if let Some(c) = &self.children {
             let v = c
                 .iter()
@@ -212,7 +206,7 @@ mod test {
     #[test]
     fn test_mcts() {
         let mut root = StateNode::new(CountGameState(0));
-        for _ in 0..100 {
+        for _ in 0..1000 {
             root.mcts_step();
         }
         let best_move = root
