@@ -6,23 +6,23 @@ use std::fmt::Debug;
 
 use rand::prelude::SliceRandom;
 
-trait Mdp {
-    type Action: Copy + Debug + PartialEq;
-    type State: Sized + Debug + Copy + PartialEq;
+pub(crate) trait Mdp {
+    type Action: Clone + Debug + PartialEq;
+    type State: Sized + Debug + Clone + PartialEq;
     const DISCOUNT_FACTOR: f64; // 1= no discount, 0=only immediate reward
     fn act(s: Self::State, action: &Self::Action) -> (Self::State, f64); // This is sampling from the Sutton&Barto's p(s',r|s,a), equation 3.2
     fn is_terminal(s: &Self::State) -> bool;
     fn allowed_actions(s: &Self::State) -> Vec<Self::Action>;
     /// If the game branch factor is large, this random strategy is bad, since it will explore very inefficiently
     /// What better enginges do is to use some heuristic for the Q-function to do the rollout.
-    fn rollout(s: &Self::State) -> f64 {
-        let actions = Self::allowed_actions(s);
+    fn rollout(s: Self::State) -> f64 {
+        let actions = Self::allowed_actions(&s);
         let action = actions.choose(&mut rand::thread_rng()).unwrap();
-        let (state, reward) = Self::act(*s, action);
+        let (state, reward) = Self::act(s, action);
         if Self::is_terminal(&state) {
             reward
         } else {
-            reward + Self::DISCOUNT_FACTOR * Self::rollout(&state)
+            reward + Self::DISCOUNT_FACTOR * Self::rollout(state)
         }
     }
 }
@@ -41,8 +41,8 @@ impl<S: Mdp> ActionNode<S> {
     /// 1. step into a node that was already expanded, then step in to that State node, continue with the node selection (MCTS phase 1)
     /// 2. step into a NEW node. In that case, we make Rollout (MCTS phase 3)
     /// Return the relevant reward observed to the parent
-    fn mcts_step(&mut self, state: S::State) -> f64 {
-        let (new_state, reward0) = S::act(state, &self.action);
+    fn mcts_step(&mut self, state: &S::State) -> f64 {
+        let (new_state, reward0) = S::act(state.clone(), &self.action);
 
         let seen_state_node = self
             .children
@@ -51,10 +51,10 @@ impl<S: Mdp> ActionNode<S> {
         let reward1 = if let Some(relevant_child) = seen_state_node {
             relevant_child.mcts_step()
         } else {
-            let mut new_child = StateNode::new(new_state);
+            let mut new_child = StateNode::new(new_state.clone());
             new_child.visits = 1.0;
             self.children.push(new_child);
-            S::rollout(&new_state)
+            S::rollout(new_state)
         };
         let reward = reward0 + S::DISCOUNT_FACTOR * reward1;
         self.tot_reward += reward;
@@ -64,21 +64,24 @@ impl<S: Mdp> ActionNode<S> {
 }
 
 #[derive(Debug, PartialEq)]
-struct StateNode<T: Mdp> {
+pub(crate) struct StateNode<T: Mdp> {
     state: T::State,
     children: Option<Vec<ActionNode<T>>>,
     visits: f64,
 }
 
 impl<S: Mdp> StateNode<S> {
-    fn new(state: S::State) -> Self {
+    pub fn new(state: S::State) -> Self {
         Self {
             state,
             children: None,
             visits: 0.0,
         }
     }
-    pub fn best_action(&self) -> Option<S::Action> {
+    pub fn get_state(&self) -> &S::State {
+        &self.state
+    }
+    pub fn best_action(&self) -> Option<&S::Action> {
         if let Some(children) = &self.children {
             children
                 .iter()
@@ -87,20 +90,20 @@ impl<S: Mdp> StateNode<S> {
                     let ucb_b = ucb(b.tot_reward, b.visits, self.visits);
                     ucb_a.total_cmp(&ucb_b)
                 })
-                .map(|bc| bc.action)
+                .map(|bc| &bc.action)
         } else {
             None
         }
     }
 
     /// If you have a list of actions one could take from this state, return a vector with UCB-action pairs
-    fn action_ucbs(&self) -> Option<Vec<(S::Action, f64)>> {
+    fn action_q_ucbs(&self) -> Option<Vec<(&S::Action, f64, f64)>> {
         if let Some(c) = &self.children {
             let v = c
                 .iter()
                 .map(|an| {
                     let ucb_val = ucb(an.tot_reward, an.visits, self.visits);
-                    (an.action, ucb_val)
+                    (&an.action, an.tot_reward/ an.visits, ucb_val)
                 })
                 .collect();
             Some(v)
@@ -129,7 +132,7 @@ impl<S: Mdp> StateNode<S> {
     /// In MCTS, when dealing with a state-node, we can only do thing:
     /// 1. take the best action from the current state
     /// 2. record that you visited this state
-    fn mcts_step(&mut self) -> f64 {
+    pub fn mcts_step(&mut self) -> f64 {
         self.visits += 1.0;
         if S::is_terminal(&self.state) {
             return 0.0; // No actions can be taken from a terminal state. And reward is only given when taking actions.
@@ -146,7 +149,7 @@ impl<S: Mdp> StateNode<S> {
                 ucb_a.total_cmp(&ucb_b)
             })
             .expect("There must be at least one child. This state is not terminal.");
-        best_action.mcts_step(self.state)
+        best_action.mcts_step(&self.state)
     }
 }
 
@@ -176,7 +179,7 @@ mod test {
     impl Mdp for CountGameMDP {
         type Action = CountGameAction;
         type State = CountGameState;
-        const DISCOUNT_FACTOR: f64 = 0.9;
+        const DISCOUNT_FACTOR: f64 = 0.99;
         fn is_terminal(s: &CountGameState) -> bool {
             s.0 <= -10 || s.0 >= 10
         }
@@ -210,14 +213,15 @@ mod test {
     #[test]
     fn test_mcts() {
         let mut root: StateNode<CountGameMDP> = StateNode::new(CountGameState(0));
-        for _ in 0..1000 {
+        for _ in 0..2000 {
             root.mcts_step();
         }
         let best_move = root
             .best_action()
             .expect("This move should have valid moves");
+        dbg!(root.action_q_ucbs());
         assert_eq!(
-            best_move,
+            *best_move,
             CountGameAction::Add,
             "Stochastic test that might fail sometimes"
         );
