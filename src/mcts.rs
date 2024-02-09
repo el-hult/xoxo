@@ -16,8 +16,13 @@ pub(crate) trait Mdp {
     /// If the game branch factor is large, this random strategy is bad, since it will explore very inefficiently
     /// What better enginges do is to use some heuristic for the Q-function to do the rollout.
     fn rollout(s: Self::State) -> f64 {
+        if Self::is_terminal(&s) {
+            return 0.0;
+        }
         let actions = Self::allowed_actions(&s);
-        let action = actions.choose(&mut rand::thread_rng()).unwrap();
+        let action = actions.choose(&mut rand::thread_rng()).expect(
+            "This function should never have been called on a state with no actions allowed",
+        );
         let (state, reward) = Self::act(s, action);
         if Self::is_terminal(&state) {
             reward
@@ -66,15 +71,32 @@ impl<S: Mdp> ActionNode<S> {
 #[derive(Debug, PartialEq)]
 pub(crate) struct StateNode<T: Mdp> {
     state: T::State,
-    children: Option<Vec<ActionNode<T>>>,
+    actions: Option<Vec<ActionNode<T>>>,
     visits: f64,
+}
+
+impl<T: Mdp> StateNode<T> {
+    /// traverse all grandchildren of this state, and if any one matches the new_state, return the grandchild
+    /// if no grandchild matches, return a new state node
+    pub fn expand_to(self, new_state: T::State) -> StateNode<T> {
+        if let Some(actions) = self.actions {
+            for action in actions {
+                for child in action.children {
+                    if child.state == new_state {
+                        return child;
+                    }
+                }
+            }
+        }
+        StateNode::new(new_state)
+    }
 }
 
 impl<S: Mdp> StateNode<S> {
     pub fn new(state: S::State) -> Self {
         Self {
             state,
-            children: None,
+            actions: None,
             visits: 0.0,
         }
     }
@@ -82,7 +104,7 @@ impl<S: Mdp> StateNode<S> {
         &self.state
     }
     pub fn best_action(&self) -> Option<&S::Action> {
-        if let Some(children) = &self.children {
+        if let Some(children) = &self.actions {
             children
                 .iter()
                 .max_by(|a, b| {
@@ -97,13 +119,13 @@ impl<S: Mdp> StateNode<S> {
     }
 
     /// If you have a list of actions one could take from this state, return a vector with UCB-action pairs
-    fn action_q_ucbs(&self) -> Option<Vec<(&S::Action, f64, f64)>> {
-        if let Some(c) = &self.children {
+    pub fn action_q_ucbs(&self) -> Option<Vec<(&S::Action, f64, f64)>> {
+        if let Some(c) = &self.actions {
             let v = c
                 .iter()
                 .map(|an| {
                     let ucb_val = ucb(an.tot_reward, an.visits, self.visits);
-                    (&an.action, an.tot_reward/ an.visits, ucb_val)
+                    (&an.action, an.tot_reward / an.visits, ucb_val)
                 })
                 .collect();
             Some(v)
@@ -113,7 +135,7 @@ impl<S: Mdp> StateNode<S> {
     }
     /// If you don't have any children yet, add them in!
     fn enumerate_actions(&mut self) {
-        if self.children.is_some() {
+        if self.actions.is_some() {
             panic!("We should not enumerate actions if we already have done so!")
         }
         let mut children = Vec::new();
@@ -125,7 +147,7 @@ impl<S: Mdp> StateNode<S> {
                 children: Vec::new(),
             });
         });
-        self.children = Some(children);
+        self.actions = Some(children);
     }
 
     /// MCTS
@@ -137,10 +159,10 @@ impl<S: Mdp> StateNode<S> {
         if S::is_terminal(&self.state) {
             return 0.0; // No actions can be taken from a terminal state. And reward is only given when taking actions.
         }
-        if self.children.is_none() {
+        if self.actions.is_none() {
             self.enumerate_actions();
         }
-        let children = self.children.as_mut().expect("We should have children here. If we don't, we should have added them in the previous step");
+        let children = self.actions.as_mut().expect("We should have children here. If we don't, we should have added them in the previous step");
         let best_action = children
             .iter_mut()
             .max_by(|a, b| {
@@ -203,7 +225,7 @@ mod test {
         let mut root: StateNode<CountGameMDP> = StateNode::new(CountGameState(0));
         root.mcts_step();
         root.mcts_step();
-        let visits: Vec<_> = root.children.unwrap().iter().map(|an| an.visits).collect();
+        let visits: Vec<_> = root.actions.unwrap().iter().map(|an| an.visits).collect();
         assert_eq!(visits.len(), 2);
         assert_eq!(visits[0], 1.0);
         assert_eq!(visits[1], 1.0);
