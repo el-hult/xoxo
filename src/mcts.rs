@@ -31,8 +31,6 @@ pub(crate) trait Mdp {
 #[derive(Debug, PartialEq)]
 struct ActionNode<T: Mdp> {
     action: T::Action,
-    tot_reward: f64,
-    visits: f64, // visits might be 1 more than the sum of the childrens visits, since the first visist is a MCTS rollout visit
     children: Vec<StateNode<T>>,
 }
 
@@ -57,17 +55,14 @@ impl<S: Mdp> ActionNode<S> {
             self.children.push(new_child);
             S::rollout(new_state)
         };
-        let reward = reward0 + S::DISCOUNT_FACTOR * reward1;
-        self.tot_reward += reward;
-        self.visits += 1.0;
-        reward
+        reward0 + S::DISCOUNT_FACTOR * reward1
     }
 }
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct StateNode<T: Mdp> {
     state: T::State,
-    actions: Option<Vec<ActionNode<T>>>,
+    actions: Option<Vec<(ActionNode<T>, f64, f64)>>,
     visits: f64,
 }
 
@@ -77,7 +72,7 @@ impl<T: Mdp> StateNode<T> {
     pub fn expand_to(self, new_state: T::State) -> StateNode<T> {
         if let Some(actions) = self.actions {
             for action in actions {
-                for child in action.children {
+                for child in action.0.children {
                     if child.state == new_state {
                         return child;
                     }
@@ -105,12 +100,12 @@ impl<S: Mdp> StateNode<S> {
         if let Some(children) = &self.actions {
             children
                 .iter()
-                .max_by(|a, b| {
-                    let ucb_a = ucb(a.tot_reward, a.visits, self.visits);
-                    let ucb_b = ucb(b.tot_reward, b.visits, self.visits);
+                .max_by(|(_a, a_tot_reward, a_visits), (_b, b_tot_reward, b_visits)| {
+                    let ucb_a = ucb(*a_tot_reward, *a_visits, self.visits);
+                    let ucb_b = ucb(*b_tot_reward, *b_visits, self.visits);
                     ucb_a.total_cmp(&ucb_b)
                 })
-                .map(|bc| &bc.action)
+                .map(|bc| &bc.0.action)
         } else {
             None
         }
@@ -121,9 +116,9 @@ impl<S: Mdp> StateNode<S> {
         if let Some(c) = &self.actions {
             let v = c
                 .iter()
-                .map(|an| {
-                    let ucb_val = ucb(an.tot_reward, an.visits, self.visits);
-                    (&an.action, an.tot_reward / an.visits, ucb_val)
+                .map(|(an, tot_reward, visits)| {
+                    let ucb_val = ucb(*tot_reward, *visits, self.visits);
+                    (&an.action, tot_reward / visits, ucb_val)
                 })
                 .collect();
             Some(v)
@@ -138,12 +133,14 @@ impl<S: Mdp> StateNode<S> {
         }
         let mut children = Vec::new();
         S::allowed_actions(&self.state).into_iter().for_each(|m| {
-            children.push(ActionNode {
-                action: m,
-                tot_reward: 0.0,
-                visits: 0.0,
-                children: Vec::new(),
-            });
+            children.push((
+                ActionNode {
+                    action: m,
+                    children: Vec::new(),
+                },
+                0.0,
+                0.0,
+            ));
         });
         self.actions = Some(children);
     }
@@ -158,15 +155,18 @@ impl<S: Mdp> StateNode<S> {
             return 0.0; // No actions can be taken from a terminal state. And reward is only given when taking actions.
         }
         let children = self.actions.as_mut().expect("We should have children here. If we don't, we should have added them in the previous step");
-        let best_action = children
+        let (best_action, tot_reward, n_visits) = children
             .iter_mut()
-            .max_by(|a, b| {
-                let ucb_a = ucb(a.tot_reward, a.visits, self.visits);
-                let ucb_b = ucb(b.tot_reward, b.visits, self.visits);
+            .max_by(|(_a, a_tot_reward, a_visits), (_b, b_tot_reward, b_visits)| {
+                let ucb_a = ucb(*a_tot_reward, *a_visits, self.visits);
+                let ucb_b = ucb(*b_tot_reward, *b_visits, self.visits);
                 ucb_a.total_cmp(&ucb_b)
             })
             .expect("There must be at least one child. This state is not terminal.");
-        best_action.mcts_step(&self.state)
+        let reward = best_action.mcts_step(&self.state);
+        *tot_reward += reward;
+        *n_visits += 1.0;
+        reward
     }
 }
 
@@ -220,7 +220,12 @@ mod test {
         let mut root: StateNode<CountGameMDP> = StateNode::new(CountGameState(0));
         root.mcts_step();
         root.mcts_step();
-        let visits: Vec<_> = root.actions.unwrap().iter().map(|an| an.visits).collect();
+        let visits: Vec<_> = root
+            .actions
+            .unwrap()
+            .iter()
+            .map(|(_, _, visits)| *visits)
+            .collect();
         assert_eq!(visits.len(), 2);
         assert_eq!(visits[0], 1.0);
         assert_eq!(visits[1], 1.0);
