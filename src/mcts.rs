@@ -24,11 +24,7 @@ pub(crate) trait Mdp {
             "This function should never have been called on a state with no actions allowed",
         );
         let (state, reward) = Self::act(s, action);
-        if Self::is_terminal(&state) {
-            reward
-        } else {
-            reward + Self::DISCOUNT_FACTOR * Self::rollout(state)
-        }
+        reward + Self::DISCOUNT_FACTOR * Self::rollout(state)
     }
 }
 
@@ -94,11 +90,13 @@ impl<T: Mdp> StateNode<T> {
 
 impl<S: Mdp> StateNode<S> {
     pub fn new(state: S::State) -> Self {
-        Self {
+        let mut s = Self {
             state,
             actions: None,
             visits: 0.0,
-        }
+        };
+        s.enumerate_actions();
+        s
     }
     pub fn get_state(&self) -> &S::State {
         &self.state
@@ -158,9 +156,6 @@ impl<S: Mdp> StateNode<S> {
         self.visits += 1.0;
         if S::is_terminal(&self.state) {
             return 0.0; // No actions can be taken from a terminal state. And reward is only given when taking actions.
-        }
-        if self.actions.is_none() {
-            self.enumerate_actions();
         }
         let children = self.actions.as_mut().expect("We should have children here. If we don't, we should have added them in the previous step");
         let best_action = children
