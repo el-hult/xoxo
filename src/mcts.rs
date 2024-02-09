@@ -214,7 +214,7 @@ mod test {
             let reward = if s.0 >= 10 { 1.0 } else { 0.0 }; // reward is 1.0 for winning
             (s, reward)
         }
-        fn allowed_actions(s: &Self::State) -> Vec<Self::Action> {
+        fn allowed_actions(_s: &Self::State) -> Vec<Self::Action> {
             vec![CountGameAction::Add, CountGameAction::Sub]
         }
     }

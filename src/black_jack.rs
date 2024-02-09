@@ -44,7 +44,7 @@ struct BjState {
 fn all_cards() -> Vec<Card> {
     let mut cards = vec![];
     for value in 1..=13 {
-        for suit in vec![Suit::Spades, Suit::Hearts, Suit::Diamonds, Suit::Clubs] {
+        for suit in [Suit::Spades, Suit::Hearts, Suit::Diamonds, Suit::Clubs] {
             cards.push(Card { value, suit });
         }
     }
@@ -87,17 +87,17 @@ impl BjState {
         let mut aces = 0;
         for card in hand {
             if card.value == 1 {
-                aces = aces + 1;
-                score = score + 11;
+                aces += 1;
+                score += 11;
             } else if card.value >= 10 {
-                score = score + 10;
+                score += 10;
             } else {
-                score = score + card.value;
+                score += card.value;
             }
         }
         while score > 21 && aces > 0 {
-            score = score - 10;
-            aces = aces - 1;
+            score -= 10;
+            aces -= 1;
         }
         score
     }
@@ -117,9 +117,9 @@ impl BjState {
                     if s.player_score() == 21 {
                         s.status = BjStatus::Ended;
                         let r = 1.5 * s.bet as f64;
-                        return (s, r);
+                        (s, r)
                     } else {
-                        return (s, 0.0);
+                        (s, 0.0)
                     }
                 }
                 _ => panic!("Invalid action"),
@@ -132,9 +132,9 @@ impl BjState {
                     if s.player_score() > 21 {
                         s.status = BjStatus::Ended;
                         let r = -s.bet as f64;
-                        return (s, r);
+                        (s, r)
                     } else {
-                        return (s, 0.0);
+                        (s, 0.0)
                     }
                 }
                 BjAction::Stand => {
@@ -145,7 +145,7 @@ impl BjState {
                     if s.dealer_score() > 21 || s.dealer_score() < s.player_score() {
                         s.status = BjStatus::Ended;
                         let r = s.bet as f64;
-                        return (s, r);
+                        (s, r)
                     } else if s.dealer_score() == s.player_score() {
                         s.status = BjStatus::Ended;
                         return (s, 0.0);
@@ -158,7 +158,7 @@ impl BjState {
                 BjAction::Surrender => {
                     s.status = BjStatus::Ended;
                     let r = -0.5 * s.bet as f64;
-                    return (s, r);
+                    (s, r)
                 }
                 _ => panic!("Invalid action"),
             },
@@ -210,7 +210,7 @@ fn main() {
         let best_move = root
             .best_action()
             .expect("This move should have valid moves");
-        let (new_state, reward) = root.get_state().clone().act(&best_move);
+        let (new_state, reward) = root.get_state().clone().act(best_move);
         if new_state.status == BjStatus::Ended {
             dbg!(&new_state);
             println!("Game ended with reward: {} and scores {} vs {}", reward, new_state.player_score(), new_state.dealer_score());
