@@ -31,13 +31,13 @@ pub(crate) trait Mdp {
 pub(crate) fn mcts_step<M: Mdp>(
     state: &M::State,
     state_visit_counter: &mut HashMap<M::State, f64>,
-    qmap: &mut HashMap<(M::State, M::Action), (f64, f64)>,
+    qmap: &mut QMap<M>,
 ) -> f64 {
-    if M::is_terminal(&state) {
+    if M::is_terminal(state) {
         return 0.0;
     }
     let allowed_actions = M::allowed_actions(state);
-    let t = *state_visit_counter.get(&state).unwrap_or(&0.0);
+    let t = *state_visit_counter.get(state).unwrap_or(&0.0);
     let (best_action, _) = allowed_actions
         .iter()
         .map(|action| {
@@ -65,13 +65,15 @@ pub(crate) fn mcts_step<M: Mdp>(
     g_return
 }
 
+type QMap<M> = HashMap<(<M as Mdp>::State, <M as Mdp>::Action), (f64, f64)>;
+
 pub(crate) fn best_action<M: Mdp>(
     state: &M::State,
-    qmap: &HashMap<(M::State, M::Action), (f64, f64)>,
+    qmap: &QMap<M>,
     state_visit_counter: &HashMap<M::State, f64>,
 ) -> M::Action {
     let allowed_actions = M::allowed_actions(state);
-    let t = *state_visit_counter.get(&state).unwrap_or(&0.0);
+    let t = *state_visit_counter.get(state).unwrap_or(&0.0);
     let (best_action, _) = allowed_actions
         .into_iter()
         .map(|action| {
