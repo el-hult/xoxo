@@ -40,7 +40,7 @@ impl Board<TTTAddr> for TTTBoard {
             })
             .collect()
     }
-    fn game_over(&self) -> bool {
+    fn game_is_over(&self) -> bool {
         let board_full = self.0.iter().all(|&q| q.is_some());
         let won = self.winner().is_some();
         won || board_full
@@ -161,7 +161,7 @@ impl Game for TicTacToe {
     type Coordinate = TTTAddr;
     fn run(&mut self) {
         let mut is_naught = true;
-        while !self.board.game_over() {
+        while !self.board.game_is_over() {
             let action = if is_naught {
                 self.player1.play(&self.board)
             } else {
@@ -221,7 +221,7 @@ impl Mdp for TicTacToe {
     }
 
     fn is_terminal(s: &TTTBoard) -> bool {
-        s.game_over()
+        s.game_is_over()
     }
 
     fn allowed_actions(s: &Self::State) -> Vec<Self::Action> {

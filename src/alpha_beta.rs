@@ -41,7 +41,7 @@ impl<G: Game> ABAi<G> {
         b: f64,
         my_move: bool,
     ) -> f64 {
-        if depth == 0 || node.game_over() {
+        if depth == 0 || node.game_is_over() {
             let s = self.heuristic(node);
             // println!("Leaf node board\n {node} gets score {s}, at {depth}. Compare with {a} and {b}");
             return s;

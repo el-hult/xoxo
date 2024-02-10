@@ -37,7 +37,7 @@ impl<G:Game> MinMaxAi<G>
     /// compute the score of a node by use of minimax
     /// Assumes I want to maximize my score, and the opponent makes moves to minimize it
     fn minimax(&mut self, node: &G::Board, depth: usize, my_move: bool) -> f64 {
-        if depth == 0 || node.game_over() {
+        if depth == 0 || node.game_is_over() {
             let s = self.heuristic(node);
             // println!("Leaf node board\n {node} gets score {s}, at {depth}. Compare with {a} and {b}");
             return s;
