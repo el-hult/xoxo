@@ -6,6 +6,7 @@ mod random_ai;
 mod tictactoe;
 mod ultimate_ttt;
 mod mcts;
+mod mcts_ai;
 
 use alpha_beta::ABAi;
 use clap::{Parser, ValueEnum};
@@ -23,6 +24,7 @@ enum PlayerType {
     Random,
     Minimax,
     AlphaBeta,
+    MctsAi
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
@@ -147,6 +149,9 @@ fn main() {
                 )),
                 PlayerType::AlphaBeta => {
                     Box::new(ABAi::new(PlayerMark::Naught, ttt_heuristic, args.ab_depth))
+                },
+                PlayerType::MctsAi => {
+                    Box::new(mcts_ai::MctsAi::new())
                 }
             };
             let p2: Box<dyn Player<G>> = match args.p2 {
@@ -159,6 +164,9 @@ fn main() {
                 )),
                 PlayerType::AlphaBeta => {
                     Box::new(ABAi::new(PlayerMark::Cross, ttt_heuristic, args.ab_depth))
+                },
+                PlayerType::MctsAi => {
+                    Box::new(mcts_ai::MctsAi::new())
                 }
             };
             let mut g = G::new(p1, p2);
@@ -176,7 +184,8 @@ fn main() {
                 )),
                 PlayerType::AlphaBeta => {
                     Box::new(ABAi::new(PlayerMark::Naught, uttt_heuristic, args.ab_depth))
-                }
+                },
+                PlayerType::MctsAi => todo!()
             };
             let p2: Box<dyn Player<G>> = match args.p2 {
                 PlayerType::Console => Box::new(ConsolePlayer::new(PlayerMark::Cross)),
@@ -188,7 +197,8 @@ fn main() {
                 )),
                 PlayerType::AlphaBeta => {
                     Box::new(ABAi::new(PlayerMark::Cross, uttt_heuristic, args.ab_depth))
-                }
+                },
+                PlayerType::MctsAi => todo!()
             };
             let mut g = G::new(p1, p2);
             g.run()

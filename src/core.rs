@@ -5,7 +5,7 @@ use std::fmt::Display;
 
 
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub enum PlayerMark {
     Cross,
     Naught,

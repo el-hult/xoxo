@@ -65,7 +65,7 @@ pub(crate) fn mcts_step<M: Mdp>(
     g_return
 }
 
-type QMap<M> = HashMap<(<M as Mdp>::State, <M as Mdp>::Action), (f64, f64)>;
+pub(crate) type QMap<M> = HashMap<(<M as Mdp>::State, <M as Mdp>::Action), (f64, f64)>;
 
 pub(crate) fn best_action<M: Mdp>(
     state: &M::State,

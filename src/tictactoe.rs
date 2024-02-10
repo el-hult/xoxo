@@ -1,6 +1,7 @@
 use super::Game;
 use super::{Player, PlayerMark};
 use crate::core::Board;
+use crate::mcts::Mdp;
 
 /// Represents a coordinate on the board
 ///
@@ -9,7 +10,7 @@ use crate::core::Board;
 ///  7 8 9
 ///
 /// invariant: the number inside must be 1-9
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct TTTAddr(pub usize);
 
 impl std::fmt::Display for TTTAddr {
@@ -22,7 +23,7 @@ impl std::fmt::Display for TTTAddr {
 /// The second member is the victory counters. +1 for naughts. -1 for crosses.
 /// Someone wins on a +3 or -3.
 /// It holds 8 numbers: 3 rows (top to bottom), 3 columns (left to rifht) and two diagonals (first the one that points to southeast, and the the one to northeast)
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
 pub struct TTTBoard([Option<PlayerMark>; 9], [i32; 8]);
 
 impl Board<TTTAddr> for TTTBoard {
@@ -108,6 +109,16 @@ impl TTTBoard {
     pub fn n_moves_made(&self) -> f64 {
         self.0.iter().map(|&q| q.is_some() as u64 as f64).sum()
     }
+
+    fn player_to_make_mark(&self) -> PlayerMark {
+        let n_naughts = self.0.iter().filter(|&&x| x == Some(PlayerMark::Naught)).count();
+        let n_crosses = self.0.iter().filter(|&&x| x == Some(PlayerMark::Cross)).count();
+        if n_naughts == n_crosses {
+            PlayerMark::Naught
+        } else {
+            PlayerMark::Cross
+        }
+    }
 }
 
 impl std::fmt::Display for TTTBoard {
@@ -189,5 +200,32 @@ impl TicTacToe {
             }
         };
     }
+}
 
+impl Mdp for TicTacToe {
+    type Action = TTTAddr;
+
+    type State = TTTBoard;
+
+    const DISCOUNT_FACTOR: f64 = 1.0;
+
+    fn act(board: TTTBoard, action: &TTTAddr) -> (TTTBoard, f64) {
+        let mut board = board;
+        let player_mark = board.player_to_make_mark();
+        board.place_mark(*action, player_mark);
+        let reward = match board.winner() {
+            Some(PlayerMark::Cross) => -1.0,
+            Some(PlayerMark::Naught) => 1.0,
+            None => 0.0,
+        };
+        (board, reward)
+    }
+
+    fn is_terminal(s: &TTTBoard) -> bool {
+        s.game_over()
+    }
+
+    fn allowed_actions(s: &Self::State) -> Vec<Self::Action> {
+        s.valid_moves()
+    }
 }
