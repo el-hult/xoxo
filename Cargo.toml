@@ -8,11 +8,3 @@ edition = "2021"
 [dependencies]
 clap = { version = "4.4.16", features = ["derive"] }
 rand = "0.8.5"
-
-[[bin]]
-name = "xoxo"
-path = "src/main.rs"
-
-[[bin]]
-name = "bj"
-path = "src/black_jack.rs"
