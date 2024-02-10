@@ -87,13 +87,14 @@ pub(crate) fn best_action<M: Mdp>(
     best_action
 }
 
-/// The UCB1 formula, with a constant of 2.0
+/// The UCB1 formula, 
+/// the constant is something...
 fn ucb(tot_g: f64, n_visists: f64, time: f64) -> f64 {
+    let c: f64 = 0.5;
     if n_visists == 0.0 {
         return f64::INFINITY;
     }
-    // The UCB1 formula, with a constant of 2.0
-    tot_g / n_visists + 2.0 * (time.ln() / n_visists).sqrt()
+    tot_g / n_visists + c * (time.ln() / n_visists).sqrt()
 }
 
 #[cfg(test)]
@@ -102,8 +103,10 @@ mod test {
     use super::*;
     use rand::{thread_rng, Rng};
 
-    #[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
-    struct CountGameState(i8);
+    #[derive(Debug, Clone, PartialEq, Hash, Eq)]
+    struct CountGameState(
+        Vec<i8>
+    );
     #[derive(Clone, Debug, PartialEq, Copy, Hash, Eq)]
     enum CountGameAction {
         Add,
@@ -115,15 +118,16 @@ mod test {
         type State = CountGameState;
         const DISCOUNT_FACTOR: f64 = 0.99;
         fn is_terminal(s: &CountGameState) -> bool {
-            s.0 <= -10 || s.0 >= 10
+            let total = s.0.iter().sum::<i8>();
+            total <= -10 || total >= 10
         }
         fn act(s: CountGameState, action: &Self::Action) -> (CountGameState, f64) {
             let mut s = s;
             match action {
-                CountGameAction::Add => s.0 += thread_rng().gen_range(-1..=3),
-                CountGameAction::Sub => s.0 += thread_rng().gen_range(-3..=1),
+                CountGameAction::Add => s.0.push(thread_rng().gen_range(-1..=3)),
+                CountGameAction::Sub => s.0.push(thread_rng().gen_range(-3..=1)),
             };
-            let reward = if s.0 >= 10 { 1.0 } else { 0.0 }; // reward is 1.0 for winning
+            let reward = if s.0.iter().sum::<i8>() >= 10 { 1.0 } else { 0.0 }; // reward is 1.0 for winning
             (s, reward)
         }
         fn allowed_actions(_s: &Self::State) -> Vec<Self::Action> {
@@ -134,7 +138,7 @@ mod test {
     // If I take two steps, will both children be visited once?
     #[test]
     fn test_mcts_step() {
-        let root: CountGameState = CountGameState(0);
+        let root: CountGameState = CountGameState(vec![]);
         let mut state_visit_counter = HashMap::new();
         let mut qmap = HashMap::new();
         mcts_step::<CountGameMDP>(&root, &mut state_visit_counter, &mut qmap);
@@ -148,6 +152,7 @@ mod test {
             .filter(|((s, _), (_, _))| s == &root)
             .map(|(_, (_, v))| v)
             .collect::<Vec<_>>();
+        dbg!(&qmap);
         assert_eq!(visits.len(), 2);
         assert_eq!(*visits[0], 1.0);
         assert_eq!(*visits[1], 1.0);
@@ -156,7 +161,7 @@ mod test {
     // If I run the game many times, Have I identified the best move?
     #[test]
     fn test_mcts() {
-        let root: CountGameState = CountGameState(0);
+        let root: CountGameState = CountGameState(vec![]);
         let mut state_visit_counter = HashMap::new();
         let mut qmap = HashMap::new();
         for _ in 0..2000 {
