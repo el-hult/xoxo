@@ -1,15 +1,17 @@
 use clap::Parser as _;
 use rand::seq::SliceRandom as _;
 
+use crate::mcts::{best_action, mcts_step};
+
 mod mcts;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct Card {
     value: u8,
     suit: Suit,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum Suit {
     Spades,
     Hearts,
@@ -17,7 +19,7 @@ enum Suit {
     Clubs,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum BjAction {
     PlaceBet(i64),
     Hit,
@@ -25,14 +27,14 @@ enum BjAction {
     Surrender,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum BjStatus {
     Wagering,
     PlayerTurn,
     Ended,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 /// must be compatible with https://github.com/endform/blackjack_state_machine/blob/master/BlackjackStateMachine_state.png
 /// but adjusted so that only the player takes actions
 struct BjState {
@@ -202,21 +204,30 @@ struct Args {
 fn main() {
     let args = Args::parse();
     dbg!(args);
-    let mut root: mcts::StateNode<BlackJack> = mcts::StateNode::new(BjState::init());
-    for _ in 0..10 {
-        for _ in 0..20000 {
-            root.mcts_step();
-        }
-        let best_move = root
-            .best_action()
-            .expect("This move should have valid moves");
-        let (new_state, reward) = root.get_state().clone().act(best_move);
-        if new_state.status == BjStatus::Ended {
-            dbg!(&new_state);
-            println!("Game ended with reward: {} and scores {} vs {}", reward, new_state.player_score(), new_state.dealer_score());
-            break;
-        } else {
-            root = root.expand_to(new_state);
+    let mut total_wins = 0.0;
+    for _ in 0..200 {
+        let mut state = BjState::init();
+        let mut qmap = std::collections::HashMap::new();
+        let mut state_visit_counter = std::collections::HashMap::new();
+        for _ in 0..10 {
+            for _ in 0..20000 {
+                mcts_step::<BlackJack>(&state, &mut state_visit_counter, &mut qmap);
+            }
+            let best_move = best_action::<BlackJack>(&state, &qmap, &state_visit_counter);
+            let (new_state, reward) = state.act(&best_move);
+            if new_state.status == BjStatus::Ended {
+                println!(
+                    "Game ended with reward: {:+6.1} and scores {:2} vs {:2}. Total wins: {:+6.1}",
+                    reward,
+                    new_state.player_score(),
+                    new_state.dealer_score(),
+                    total_wins
+                );
+                total_wins += reward;
+                break;
+            } else {
+                state = new_state;
+            }
         }
     }
 }

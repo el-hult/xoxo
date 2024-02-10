@@ -2,13 +2,13 @@
 //!
 //! This module is very much work in progress, and is not yet used in the main program.
 
-use std::fmt::Debug;
-
 use rand::prelude::SliceRandom;
+use std::hash::Hash;
+use std::{collections::HashMap, fmt::Debug};
 
 pub(crate) trait Mdp {
-    type Action: Clone + Debug + PartialEq;
-    type State: Sized + Debug + Clone + PartialEq;
+    type Action: Clone + Debug + PartialEq + Eq + Hash;
+    type State: Sized + Debug + Clone + PartialEq + Eq + Hash;
     const DISCOUNT_FACTOR: f64; // 1= no discount, 0=only immediate reward
     fn act(s: Self::State, action: &Self::Action) -> (Self::State, f64); // This is sampling from the Sutton&Barto's p(s',r|s,a), equation 3.2
     fn is_terminal(s: &Self::State) -> bool;
@@ -28,155 +28,70 @@ pub(crate) trait Mdp {
     }
 }
 
-#[derive(Debug, PartialEq)]
-struct ActionNode<T: Mdp> {
-    action: T::Action,
-    children: Vec<StateNode<T>>,
+pub(crate) fn mcts_step<M: Mdp>(
+    state: &M::State,
+    state_visit_counter: &mut HashMap<M::State, f64>,
+    qmap: &mut HashMap<(M::State, M::Action), (f64, f64)>,
+) -> f64 {
+    if M::is_terminal(&state) {
+        return 0.0;
+    }
+    let allowed_actions = M::allowed_actions(state);
+    let t = *state_visit_counter.get(&state).unwrap_or(&0.0);
+    let (best_action, _) = allowed_actions
+        .iter()
+        .map(|action| {
+            let (w, v) = qmap
+                .get(&(state.clone(), action.clone()))
+                .unwrap_or(&(0.0, 0.0));
+            (action, ucb(*w, *v, t))
+        })
+        .max_by(|(_, ucb1), (_, ucb2)| ucb1.partial_cmp(ucb2).unwrap())
+        .unwrap();
+    let (new_state, reward) = M::act(state.clone(), best_action);
+    let state_was_new = state_visit_counter.get(state).is_none();
+    let g_return = if state_was_new {
+        reward + M::rollout(new_state) * M::DISCOUNT_FACTOR
+    } else {
+        reward + mcts_step::<M>(&new_state, state_visit_counter, qmap) * M::DISCOUNT_FACTOR
+    };
+
+    // Update the Q-function and the visit counter
+    state_visit_counter.insert(state.clone(), t + 1.0);
+    let state_action_key = (state.clone(), best_action.clone());
+    let (w, v) = qmap.get(&state_action_key).unwrap_or(&(0.0, 0.0));
+    qmap.insert(state_action_key, (w + g_return, v + 1.0));
+
+    g_return
 }
 
-impl<S: Mdp> ActionNode<S> {
-    /// If we took the action in `self` from a certain state,
-    /// we will make a mcts step down. That means either
-    /// 1. step into a node that was already expanded, then step in to that State node, continue with the node selection (MCTS phase 1)
-    /// 2. step into a NEW node. In that case, we make Rollout (MCTS phase 3)
-    /// Return the relevant reward observed to the parent
-    fn mcts_step(&mut self, state: &S::State) -> f64 {
-        let (new_state, reward0) = S::act(state.clone(), &self.action);
-
-        let seen_state_node = self
-            .children
-            .iter_mut()
-            .find(|child| child.state == new_state);
-        let reward1 = if let Some(relevant_child) = seen_state_node {
-            relevant_child.mcts_step()
-        } else {
-            let mut new_child = StateNode::new(new_state.clone());
-            new_child.visits = 1.0;
-            self.children.push(new_child);
-            S::rollout(new_state)
-        };
-        reward0 + S::DISCOUNT_FACTOR * reward1
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub(crate) struct StateNode<T: Mdp> {
-    state: T::State,
-    actions: Option<Vec<(ActionNode<T>, f64, f64)>>,
-    visits: f64,
-}
-
-impl<T: Mdp> StateNode<T> {
-    /// traverse all grandchildren of this state, and if any one matches the new_state, return the grandchild
-    /// if no grandchild matches, return a new state node
-    pub fn expand_to(self, new_state: T::State) -> StateNode<T> {
-        if let Some(actions) = self.actions {
-            for action in actions {
-                for child in action.0.children {
-                    if child.state == new_state {
-                        return child;
-                    }
-                }
-            }
-        }
-        StateNode::new(new_state)
-    }
-}
-
-impl<S: Mdp> StateNode<S> {
-    pub fn new(state: S::State) -> Self {
-        let mut s = Self {
-            state,
-            actions: None,
-            visits: 0.0,
-        };
-        s.enumerate_actions();
-        s
-    }
-    pub fn get_state(&self) -> &S::State {
-        &self.state
-    }
-    pub fn best_action(&self) -> Option<&S::Action> {
-        if let Some(children) = &self.actions {
-            children
-                .iter()
-                .max_by(|(_a, a_tot_reward, a_visits), (_b, b_tot_reward, b_visits)| {
-                    let ucb_a = ucb(*a_tot_reward, *a_visits, self.visits);
-                    let ucb_b = ucb(*b_tot_reward, *b_visits, self.visits);
-                    ucb_a.total_cmp(&ucb_b)
-                })
-                .map(|bc| &bc.0.action)
-        } else {
-            None
-        }
-    }
-
-    /// If you have a list of actions one could take from this state, return a vector with UCB-action pairs
-    pub fn action_q_ucbs(&self) -> Option<Vec<(&S::Action, f64, f64)>> {
-        if let Some(c) = &self.actions {
-            let v = c
-                .iter()
-                .map(|(an, tot_reward, visits)| {
-                    let ucb_val = ucb(*tot_reward, *visits, self.visits);
-                    (&an.action, tot_reward / visits, ucb_val)
-                })
-                .collect();
-            Some(v)
-        } else {
-            None
-        }
-    }
-    /// If you don't have any children yet, add them in!
-    fn enumerate_actions(&mut self) {
-        if self.actions.is_some() {
-            panic!("We should not enumerate actions if we already have done so!")
-        }
-        let mut children = Vec::new();
-        S::allowed_actions(&self.state).into_iter().for_each(|m| {
-            children.push((
-                ActionNode {
-                    action: m,
-                    children: Vec::new(),
-                },
-                0.0,
-                0.0,
-            ));
-        });
-        self.actions = Some(children);
-    }
-
-    /// MCTS
-    /// In MCTS, when dealing with a state-node, we can only do thing:
-    /// 1. take the best action from the current state
-    /// 2. record that you visited this state
-    pub fn mcts_step(&mut self) -> f64 {
-        self.visits += 1.0;
-        if S::is_terminal(&self.state) {
-            return 0.0; // No actions can be taken from a terminal state. And reward is only given when taking actions.
-        }
-        let children = self.actions.as_mut().expect("We should have children here. If we don't, we should have added them in the previous step");
-        let (best_action, tot_reward, n_visits) = children
-            .iter_mut()
-            .max_by(|(_a, a_tot_reward, a_visits), (_b, b_tot_reward, b_visits)| {
-                let ucb_a = ucb(*a_tot_reward, *a_visits, self.visits);
-                let ucb_b = ucb(*b_tot_reward, *b_visits, self.visits);
-                ucb_a.total_cmp(&ucb_b)
-            })
-            .expect("There must be at least one child. This state is not terminal.");
-        let reward = best_action.mcts_step(&self.state);
-        *tot_reward += reward;
-        *n_visits += 1.0;
-        reward
-    }
+pub(crate) fn best_action<M: Mdp>(
+    state: &M::State,
+    qmap: &HashMap<(M::State, M::Action), (f64, f64)>,
+    state_visit_counter: &HashMap<M::State, f64>,
+) -> M::Action {
+    let allowed_actions = M::allowed_actions(state);
+    let t = *state_visit_counter.get(&state).unwrap_or(&0.0);
+    let (best_action, _) = allowed_actions
+        .into_iter()
+        .map(|action| {
+            let (w, v) = qmap
+                .get(&(state.clone(), action.clone()))
+                .unwrap_or(&(0.0, 0.0));
+            (action, ucb(*w, *v, t))
+        })
+        .max_by(|(_, ucb1), (_, ucb2)| ucb1.partial_cmp(ucb2).unwrap())
+        .unwrap();
+    best_action
 }
 
 /// The UCB1 formula, with a constant of 2.0
-fn ucb(w: f64, v: f64, t: f64) -> f64 {
-    if v == 0.0 {
+fn ucb(tot_g: f64, n_visists: f64, time: f64) -> f64 {
+    if n_visists == 0.0 {
         return f64::INFINITY;
     }
     // The UCB1 formula, with a constant of 2.0
-    w / v + 2.0 * (t.ln() / v).sqrt()
+    tot_g / n_visists + 2.0 * (time.ln() / n_visists).sqrt()
 }
 
 #[cfg(test)]
@@ -185,9 +100,9 @@ mod test {
     use super::*;
     use rand::{thread_rng, Rng};
 
-    #[derive(Debug, Clone, Copy, PartialEq)]
+    #[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
     struct CountGameState(i8);
-    #[derive(Clone, Debug, PartialEq, Copy)]
+    #[derive(Clone, Debug, PartialEq, Copy, Hash, Eq)]
     enum CountGameAction {
         Add,
         Sub,
@@ -217,33 +132,37 @@ mod test {
     // If I take two steps, will both children be visited once?
     #[test]
     fn test_mcts_step() {
-        let mut root: StateNode<CountGameMDP> = StateNode::new(CountGameState(0));
-        root.mcts_step();
-        root.mcts_step();
-        let visits: Vec<_> = root
-            .actions
-            .unwrap()
+        let root: CountGameState = CountGameState(0);
+        let mut state_visit_counter = HashMap::new();
+        let mut qmap = HashMap::new();
+        mcts_step::<CountGameMDP>(&root, &mut state_visit_counter, &mut qmap);
+        mcts_step::<CountGameMDP>(&root, &mut state_visit_counter, &mut qmap);
+        // The root state should have been visited twice
+        assert!(state_visit_counter.contains_key(&root));
+        assert_eq!(state_visit_counter[&root], 2.0);
+        // check that there are two actions in the qmap associated with the root state
+        let visits = qmap
             .iter()
-            .map(|(_, _, visits)| *visits)
-            .collect();
+            .filter(|((s, _), (_, _))| s == &root)
+            .map(|(_, (_, v))| v)
+            .collect::<Vec<_>>();
         assert_eq!(visits.len(), 2);
-        assert_eq!(visits[0], 1.0);
-        assert_eq!(visits[1], 1.0);
+        assert_eq!(*visits[0], 1.0);
+        assert_eq!(*visits[1], 1.0);
     }
 
     // If I run the game many times, Have I identified the best move?
     #[test]
     fn test_mcts() {
-        let mut root: StateNode<CountGameMDP> = StateNode::new(CountGameState(0));
+        let root: CountGameState = CountGameState(0);
+        let mut state_visit_counter = HashMap::new();
+        let mut qmap = HashMap::new();
         for _ in 0..2000 {
-            root.mcts_step();
+            mcts_step::<CountGameMDP>(&root, &mut state_visit_counter, &mut qmap);
         }
-        let best_move = root
-            .best_action()
-            .expect("This move should have valid moves");
-        dbg!(root.action_q_ucbs());
+        let best_move = best_action::<CountGameMDP>(&root, &qmap, &state_visit_counter);
         assert_eq!(
-            *best_move,
+            best_move,
             CountGameAction::Add,
             "Stochastic test that might fail sometimes"
         );
