@@ -1,27 +1,29 @@
 use std::collections::HashMap;
 
-use crate::{core::Player, mcts::{best_action, mcts_step, Mdp, QMap}, tictactoe::{TTTAddr, TTTBoard, TicTacToe}};
+
+use rand::{rngs::StdRng, SeedableRng as _};
+
+use crate::{core::Player, mcts::{best_action, run_train_steps, Mdp, QMap}, tictactoe::{TTTAddr, TTTBoard, TicTacToe}};
 
 pub(crate) struct MctsAi<T:Mdp> {
     qmap: QMap<T>,
     state_visit_counter: HashMap<T::State, f64>,
+    rng: StdRng,
 }
 
 impl<T:Mdp> MctsAi<T> {
-    pub fn new() -> Self {
+    pub fn new(seed: u64) -> Self {
         MctsAi {
             qmap: QMap::<T>::new(),
             state_visit_counter: HashMap::new(),
+            rng: StdRng::seed_from_u64(seed)
+            }
         }
     }
-}
 
 impl Player<TicTacToe> for MctsAi<TicTacToe>{
     fn play(&mut self, b: &TTTBoard) -> TTTAddr {
-        for _ in 0..1000 {
-            mcts_step::<TicTacToe>(b, &mut self.state_visit_counter, &mut self.qmap);
-        }
-        
-        best_action::<TicTacToe>(b, &self.qmap, &self.state_visit_counter)
+        run_train_steps::<TicTacToe>(b, &mut self.qmap, &mut self.state_visit_counter, &mut self.rng,2000);
+        best_action::<TicTacToe>(b, &self.qmap, &self.state_visit_counter, &mut self.rng)
     }
 }

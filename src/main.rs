@@ -11,6 +11,7 @@ mod mcts_ai;
 use alpha_beta::ABAi;
 use clap::{Parser, ValueEnum};
 use console_player::ConsolePlayer;
+use rand::{rngs::StdRng, Rng as _, SeedableRng as _};
 use core::{Game, Player, PlayerMark};
 use min_max::MinMaxAi;
 use random_ai::RandomAi;
@@ -136,12 +137,15 @@ fn uttt_heuristic(my_marker: PlayerMark, b: &<UltimateTicTacToe as Game>::Board)
 
 fn main() {
     let args = Args::parse();
+    let seed = args.seed.unwrap_or(StdRng::from_entropy().gen());
+    println!("Seed: {}", seed);
+    let mut rng = StdRng::seed_from_u64(seed);
     match args.game {
         GameType::Ttt => {
             type G = TicTacToe;
             let p1: Box<dyn Player<G>> = match args.p1 {
                 PlayerType::Console => Box::new(ConsolePlayer::new(PlayerMark::Naught)),
-                PlayerType::Random => Box::new(RandomAi::new(PlayerMark::Naught, args.seed)),
+                PlayerType::Random => Box::new(RandomAi::new(PlayerMark::Naught, rng.gen())),
                 PlayerType::Minimax => Box::new(MinMaxAi::new(
                     PlayerMark::Naught,
                     ttt_heuristic,
@@ -151,12 +155,12 @@ fn main() {
                     Box::new(ABAi::new(PlayerMark::Naught, ttt_heuristic, args.ab_depth))
                 },
                 PlayerType::MctsAi => {
-                    Box::new(mcts_ai::MctsAi::new())
+                    Box::new(mcts_ai::MctsAi::new(rng.gen()))
                 }
             };
             let p2: Box<dyn Player<G>> = match args.p2 {
                 PlayerType::Console => Box::new(ConsolePlayer::new(PlayerMark::Cross)),
-                PlayerType::Random => Box::new(RandomAi::new(PlayerMark::Cross, args.seed)),
+                PlayerType::Random => Box::new(RandomAi::new(PlayerMark::Cross, rng.gen())),
                 PlayerType::Minimax => Box::new(MinMaxAi::new(
                     PlayerMark::Cross,
                     ttt_heuristic,
@@ -166,7 +170,7 @@ fn main() {
                     Box::new(ABAi::new(PlayerMark::Cross, ttt_heuristic, args.ab_depth))
                 },
                 PlayerType::MctsAi => {
-                    Box::new(mcts_ai::MctsAi::new())
+                    Box::new(mcts_ai::MctsAi::new(rng.gen()))
                 }
             };
             let mut g = G::new(p1, p2);
@@ -176,7 +180,7 @@ fn main() {
             type G = UltimateTicTacToe;
             let p1: Box<dyn Player<G>> = match args.p1 {
                 PlayerType::Console => Box::new(ConsolePlayer::new(PlayerMark::Naught)),
-                PlayerType::Random => Box::new(RandomAi::new(PlayerMark::Naught, args.seed)),
+                PlayerType::Random => Box::new(RandomAi::new(PlayerMark::Naught, rng.gen())),
                 PlayerType::Minimax => Box::new(MinMaxAi::new(
                     PlayerMark::Naught,
                     uttt_heuristic,
@@ -189,7 +193,7 @@ fn main() {
             };
             let p2: Box<dyn Player<G>> = match args.p2 {
                 PlayerType::Console => Box::new(ConsolePlayer::new(PlayerMark::Cross)),
-                PlayerType::Random => Box::new(RandomAi::new(PlayerMark::Cross, args.seed)),
+                PlayerType::Random => Box::new(RandomAi::new(PlayerMark::Cross, rng.gen())),
                 PlayerType::Minimax => Box::new(MinMaxAi::new(
                     PlayerMark::Cross,
                     uttt_heuristic,

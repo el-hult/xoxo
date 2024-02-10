@@ -2,12 +2,16 @@
 //!
 //! This module is very much work in progress, and is not yet used in the main program.
 
+use itertools::Itertools as _;
 use rand::prelude::SliceRandom;
+use rand::rngs::StdRng;
+use rand::seq::IteratorRandom as _;
+
 use std::hash::Hash;
 use std::{collections::HashMap, fmt::Debug};
 
 pub(crate) trait Mdp {
-    type Action: Clone + Debug + PartialEq + Eq + Hash;
+    type Action: Clone + Debug + PartialEq + Eq + Hash + Ord;
     type State: Sized + Debug + Clone + PartialEq + Eq + Hash;
     const DISCOUNT_FACTOR: f64; // 1= no discount, 0=only immediate reward
     fn act(s: Self::State, action: &Self::Action) -> (Self::State, f64); // This is sampling from the Sutton&Barto's p(s',r|s,a), equation 3.2
@@ -15,16 +19,16 @@ pub(crate) trait Mdp {
     fn allowed_actions(s: &Self::State) -> Vec<Self::Action>;
     /// If the game branch factor is large, this random strategy is bad, since it will explore very inefficiently
     /// What better enginges do is to use some heuristic for the Q-function to do the rollout.
-    fn rollout(s: Self::State) -> f64 {
+    fn rollout(s: Self::State, rng: &mut StdRng) -> f64 {
         if Self::is_terminal(&s) {
             return 0.0;
         }
         let actions = Self::allowed_actions(&s);
-        let action = actions.choose(&mut rand::thread_rng()).expect(
+        let action = actions.choose(rng).expect(
             "This function should never have been called on a state with no actions allowed",
         );
         let (state, reward) = Self::act(s, action);
-        reward + Self::DISCOUNT_FACTOR * Self::rollout(state)
+        reward + Self::DISCOUNT_FACTOR * Self::rollout(state, rng)
     }
 }
 
@@ -32,28 +36,19 @@ pub(crate) fn mcts_step<M: Mdp>(
     state: &M::State,
     state_visit_counter: &mut HashMap<M::State, f64>,
     qmap: &mut QMap<M>,
+    rng: &mut StdRng,
 ) -> f64 {
     if M::is_terminal(state) {
         return 0.0;
     }
-    let allowed_actions = M::allowed_actions(state);
     let t = *state_visit_counter.get(state).unwrap_or(&0.0);
-    let (best_action, _) = allowed_actions
-        .iter()
-        .map(|action| {
-            let (w, v) = qmap
-                .get(&(state.clone(), action.clone()))
-                .unwrap_or(&(0.0, 0.0));
-            (action, ucb(*w, *v, t))
-        })
-        .max_by(|(_, ucb1), (_, ucb2)| ucb1.partial_cmp(ucb2).unwrap())
-        .unwrap();
-    let (new_state, reward) = M::act(state.clone(), best_action);
+    let best_action = best_action::<M>(state, qmap, state_visit_counter, rng);
+    let (new_state, reward) = M::act(state.clone(), &best_action);
     let state_was_new = state_visit_counter.get(state).is_none();
     let g_return = if state_was_new {
-        reward + M::rollout(new_state) * M::DISCOUNT_FACTOR
+        reward + M::rollout(new_state, rng) * M::DISCOUNT_FACTOR
     } else {
-        reward + mcts_step::<M>(&new_state, state_visit_counter, qmap) * M::DISCOUNT_FACTOR
+        reward + mcts_step::<M>(&new_state, state_visit_counter, qmap, rng) * M::DISCOUNT_FACTOR
     };
 
     // Update the Q-function and the visit counter
@@ -71,10 +66,11 @@ pub(crate) fn best_action<M: Mdp>(
     state: &M::State,
     qmap: &QMap<M>,
     state_visit_counter: &HashMap<M::State, f64>,
+    rng: &mut StdRng,
 ) -> M::Action {
     let allowed_actions = M::allowed_actions(state);
     let t = *state_visit_counter.get(state).unwrap_or(&0.0);
-    let (best_action, _) = allowed_actions
+    let best_action = allowed_actions
         .into_iter()
         .map(|action| {
             let (w, v) = qmap
@@ -82,15 +78,30 @@ pub(crate) fn best_action<M: Mdp>(
                 .unwrap_or(&(0.0, 0.0));
             (action, ucb(*w, *v, t))
         })
-        .max_by(|(_, ucb1), (_, ucb2)| ucb1.partial_cmp(ucb2).unwrap())
-        .unwrap();
+        .max_set_by(|(_, ucb1), (_, ucb2)| ucb1.partial_cmp(ucb2).unwrap())
+        .into_iter()
+        .map(|(action, _)| action)
+        .choose(rng)
+        .expect("There must be at least one action");
     best_action
 }
 
-/// The UCB1 formula, 
+pub(crate) fn run_train_steps<M: Mdp>(
+    b: &M::State,
+    qmap: &mut QMap<M>,
+    state_visit_counter: &mut HashMap<M::State, f64>,
+    rng: &mut StdRng,
+    n_rounds: usize,
+) {
+    for _ in 0..n_rounds {
+        mcts_step::<M>(b, state_visit_counter, qmap, rng);
+    }
+}
+
+/// The UCB1 formula,
 /// the constant is something...
 fn ucb(tot_g: f64, n_visists: f64, time: f64) -> f64 {
-    let c: f64 = 0.5;
+    let c: f64 = 0.75;
     if n_visists == 0.0 {
         return f64::INFINITY;
     }
@@ -101,13 +112,11 @@ fn ucb(tot_g: f64, n_visists: f64, time: f64) -> f64 {
 mod test {
 
     use super::*;
-    use rand::{thread_rng, Rng};
+    use rand::{thread_rng, Rng, SeedableRng};
 
     #[derive(Debug, Clone, PartialEq, Hash, Eq)]
-    struct CountGameState(
-        Vec<i8>
-    );
-    #[derive(Clone, Debug, PartialEq, Copy, Hash, Eq)]
+    struct CountGameState(Vec<i8>);
+    #[derive(Clone, Debug, PartialEq, Copy, Hash, Eq, Ord, PartialOrd)]
     enum CountGameAction {
         Add,
         Sub,
@@ -127,7 +136,11 @@ mod test {
                 CountGameAction::Add => s.0.push(thread_rng().gen_range(-1..=3)),
                 CountGameAction::Sub => s.0.push(thread_rng().gen_range(-3..=1)),
             };
-            let reward = if s.0.iter().sum::<i8>() >= 10 { 1.0 } else { 0.0 }; // reward is 1.0 for winning
+            let reward = if s.0.iter().sum::<i8>() >= 10 {
+                1.0
+            } else {
+                0.0
+            }; // reward is 1.0 for winning
             (s, reward)
         }
         fn allowed_actions(_s: &Self::State) -> Vec<Self::Action> {
@@ -141,8 +154,9 @@ mod test {
         let root: CountGameState = CountGameState(vec![]);
         let mut state_visit_counter = HashMap::new();
         let mut qmap = HashMap::new();
-        mcts_step::<CountGameMDP>(&root, &mut state_visit_counter, &mut qmap);
-        mcts_step::<CountGameMDP>(&root, &mut state_visit_counter, &mut qmap);
+        let mut rng = StdRng::from_entropy();
+        mcts_step::<CountGameMDP>(&root, &mut state_visit_counter, &mut qmap, &mut rng);
+        mcts_step::<CountGameMDP>(&root, &mut state_visit_counter, &mut qmap, &mut rng);
         // The root state should have been visited twice
         assert!(state_visit_counter.contains_key(&root));
         assert_eq!(state_visit_counter[&root], 2.0);
@@ -164,10 +178,9 @@ mod test {
         let root: CountGameState = CountGameState(vec![]);
         let mut state_visit_counter = HashMap::new();
         let mut qmap = HashMap::new();
-        for _ in 0..2000 {
-            mcts_step::<CountGameMDP>(&root, &mut state_visit_counter, &mut qmap);
-        }
-        let best_move = best_action::<CountGameMDP>(&root, &qmap, &state_visit_counter);
+        let mut rng = StdRng::from_entropy();
+        run_train_steps::<CountGameMDP>(&root, &mut qmap, &mut state_visit_counter, &mut rng, 1000);
+        let best_move = best_action::<CountGameMDP>(&root, &qmap, &state_visit_counter, &mut rng);
         assert_eq!(
             best_move,
             CountGameAction::Add,

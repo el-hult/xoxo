@@ -10,7 +10,7 @@ use crate::mcts::Mdp;
 ///  7 8 9
 ///
 /// invariant: the number inside must be 1-9
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Ord, PartialOrd)]
 pub struct TTTAddr(pub usize);
 
 impl std::fmt::Display for TTTAddr {
@@ -207,15 +207,14 @@ impl Mdp for TicTacToe {
 
     type State = TTTBoard;
 
-    const DISCOUNT_FACTOR: f64 = 1.0;
+    const DISCOUNT_FACTOR: f64 = -1.0;
 
     fn act(board: TTTBoard, action: &TTTAddr) -> (TTTBoard, f64) {
         let mut board = board;
         let player_mark = board.player_to_make_mark();
         board.place_mark(*action, player_mark);
-        let reward = match board.winner() {
-            Some(PlayerMark::Cross) => -1.0,
-            Some(PlayerMark::Naught) => 1.0,
+        let reward: f64 = match board.winner() {
+            Some(mark) => if player_mark == mark { 1.0 } else { -1.0 },
             None => 0.0,
         };
         (board, reward)
