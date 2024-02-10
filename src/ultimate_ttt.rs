@@ -331,7 +331,7 @@ impl BoardTrait<Action> for Board {
     fn place_mark(&mut self, a: Action, marker: PlayerMark) {
         self.place_mark(a, marker);
     }
-    fn game_over(&self) -> bool {
+    fn game_is_over(&self) -> bool {
         !matches!(self.sup_board_status, BoardStatus::Undecided)
     }
 }
@@ -341,7 +341,7 @@ impl Mdp for UltimateTicTacToe {
     type State = Board;
     const DISCOUNT_FACTOR: f64 = -1.0;
     fn is_terminal(s: &Board) -> bool {
-        s.game_over()
+        s.game_is_over()
     }
     fn allowed_actions(s: &Self::State) -> Vec<Self::Action> {
         s.valid_moves()
