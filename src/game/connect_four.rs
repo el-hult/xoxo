@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{core::{Board, Game, Player, PlayerMark}, player::mcts::Mdp};
+use crate::core::{Board, Game, GameStatus, Player, PlayerMark};
 
 pub struct ConnectFour {
     board: C4Board,
@@ -68,6 +68,12 @@ impl From<C4Board> for [[Option<PlayerMark>; 6]; 7] {
 
 
 impl Board<usize> for C4Board {
+    fn current_player(&self) -> PlayerMark {
+        match self.board.iter().flatten().filter(|x| x.is_some()).count() % 2 {
+            0 => PlayerMark::Naught,
+            _ => PlayerMark::Cross,
+        }
+    }
     fn valid_moves(&self) -> Vec<usize> {
         self.board.iter().enumerate().filter_map(|(i, col)| {
             if col[5].is_none() {
@@ -76,6 +82,13 @@ impl Board<usize> for C4Board {
                 None
             }
         }).collect()
+    }
+    fn game_status(&self) -> GameStatus {
+        match self.winner() {
+            Some(m) => GameStatus::Won(m),
+            None if self.board.iter().flatten().all(|cell| cell.is_some()) => GameStatus::Draw,
+            _ => GameStatus::Undecided
+        }
     }
 
     fn place_mark(&mut self, a: usize, marker: PlayerMark) {
@@ -86,10 +99,6 @@ impl Board<usize> for C4Board {
         *top_of_column = Some(marker);
     }
 
-    fn game_is_over(&self) -> bool {
-        // Check if there are four in row in column
-        self.winner().is_some() || self.board.iter().all(|col| col.iter().all(|x| x.is_some()))
-    }
 }
 
 #[cfg(test)]
@@ -229,13 +238,6 @@ impl  C4Board {
         }     
         None   
     }
-
-    fn current_player(&self) -> PlayerMark {
-        match self.board.iter().flatten().filter(|x| x.is_some()).count() % 2 {
-            0 => PlayerMark::Naught,
-            _ => PlayerMark::Cross,
-        }
-    }
 }
 
 impl Display for C4Board {
@@ -255,33 +257,10 @@ impl Display for C4Board {
     }
 }
 
-impl Mdp for ConnectFour {
-    type Action = usize;
-
-    type State = C4Board;
-
-    const DISCOUNT_FACTOR: f64 = -1.0;
-
-    fn act(mut s: Self::State, action: &Self::Action) -> (Self::State, f64) {
-        s.place_mark(*action, s.current_player());
-        let reward = match s.winner() {
-            Some(player) => if player == s.current_player() {1.0} else {-1.0},
-            None => 0.0,
-        };
-        (s, reward)
-    }
-
-    fn is_terminal(s: &Self::State) -> bool {
-        s.game_is_over()
-    }
-
-    fn allowed_actions(s: &Self::State) -> Vec<Self::Action> {
-        s.valid_moves()
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    use crate::core::GameStatus;
+
     use super::*;
     #[test]
     fn test_winner_in_column() {
@@ -347,6 +326,6 @@ mod tests {
         xoxxo..");
         assert_eq!(board.winner_in_backslash_diagonal(4), Some(PlayerMark::Naught));
         assert_eq!(board.winner(), Some(PlayerMark::Naught));
-        assert!(board.game_is_over());
+        assert!(matches!(board.game_status(), GameStatus::Won(_)));
     }
 }

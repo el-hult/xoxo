@@ -1,13 +1,10 @@
 use std::fmt::Display;
 
-use crate::{
-    core::{Board as BoardTrait, Game, GameStatus, Player, PlayerMark},
-    player::mcts::Mdp,
-};
+use crate::core::{Board as BoardTrait, Game, GameStatus, Player, PlayerMark};
 
 pub struct UltimateTicTacToe {
     board: Board,
-    turn: PlayerMark,
+    current_player: PlayerMark,
     player_naught: Box<dyn Player<UltimateTicTacToe>>,
     player_cross: Box<dyn Player<UltimateTicTacToe>>,
 }
@@ -19,7 +16,7 @@ impl UltimateTicTacToe {
     ) -> Self {
         Self {
             board: Board::new(),
-            turn: PlayerMark::Naught,
+            current_player: PlayerMark::Naught,
             player_naught: naughts,
             player_cross: crosses,
         }
@@ -29,8 +26,8 @@ impl UltimateTicTacToe {
     /// Remember that the win condition must be updated at the end..
     fn update(&mut self, action: Action) {
         self.board.validate(action);
-        self.board.place_mark(action, self.turn);
-        self.turn = self.turn.other();
+        self.board.place_mark(action, self.current_player);
+        self.current_player = self.current_player.other();
     }
 }
 
@@ -192,32 +189,6 @@ impl Board {
     pub(crate) fn get_board(&self) -> &[[[[Option<PlayerMark>; 3]; 3]; 3]; 3] {
         &self.board
     }
-
-    fn player_to_go(&self) -> PlayerMark {
-        // count the number of noughts and crosses
-        // if they are equal, it is naughts turn
-        let noughts = self
-            .board
-            .iter()
-            .flatten()
-            .flatten()
-            .flatten()
-            .filter(|&x| *x == Some(PlayerMark::Naught))
-            .count();
-        let crosses = self
-            .board
-            .iter()
-            .flatten()
-            .flatten()
-            .flatten()
-            .filter(|&x| *x == Some(PlayerMark::Cross))
-            .count();
-        if noughts == crosses {
-            PlayerMark::Naught
-        } else {
-            PlayerMark::Cross
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Hash)]
@@ -258,7 +229,7 @@ impl Game for UltimateTicTacToe {
     type Coordinate = Action;
     fn run(&mut self) {
         while self.board.sup_board_status == GameStatus::Undecided {
-            let action = if self.turn == PlayerMark::Naught {
+            let action = if self.current_player == PlayerMark::Naught {
                 self.player_naught.play(&self.board)
             } else {
                 self.player_cross.play(&self.board)
@@ -326,36 +297,32 @@ impl BoardTrait<Action> for Board {
     fn place_mark(&mut self, a: Action, marker: PlayerMark) {
         self.place_mark(a, marker);
     }
-    fn game_is_over(&self) -> bool {
-        !matches!(self.sup_board_status, GameStatus::Undecided)
+    fn game_status(&self) -> GameStatus {
+        self.sup_board_status
     }
-}
-
-impl Mdp for UltimateTicTacToe {
-    type Action = Action;
-    type State = Board;
-    const DISCOUNT_FACTOR: f64 = -1.0;
-    fn is_terminal(s: &Board) -> bool {
-        s.game_is_over()
-    }
-    fn allowed_actions(s: &Self::State) -> Vec<Self::Action> {
-        s.valid_moves()
-    }
-    fn act(s: Board, action: &Self::Action) -> (Board, f64) {
-        let mut s = s;
-        let player_mark = s.player_to_go();
-        s.place_mark(*action, player_mark);
-        let reward: f64 = match s.sup_board_status {
-            GameStatus::Won(mark) => {
-                if player_mark == mark {
-                    1.0
-                } else {
-                    -1.0
-                }
-            }
-            GameStatus::Draw => 0.0,
-            _ => 0.0,
-        };
-        (s, reward)
+    fn current_player(&self) -> PlayerMark {
+        // count the number of noughts and crosses
+        // if they are equal, it is naughts turn
+        let noughts = self
+            .board
+            .iter()
+            .flatten()
+            .flatten()
+            .flatten()
+            .filter(|&x| *x == Some(PlayerMark::Naught))
+            .count();
+        let crosses = self
+            .board
+            .iter()
+            .flatten()
+            .flatten()
+            .flatten()
+            .filter(|&x| *x == Some(PlayerMark::Cross))
+            .count();
+        if noughts == crosses {
+            PlayerMark::Naught
+        } else {
+            PlayerMark::Cross
+        }
     }
 }

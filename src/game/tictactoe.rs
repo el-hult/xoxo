@@ -1,4 +1,4 @@
-use crate::{core::{Board, Game, Player, PlayerMark}, player::mcts::Mdp};
+use crate::core::{Board, Game, GameStatus, Player, PlayerMark};
 
 /// Represents a coordinate on the board
 ///
@@ -20,7 +20,7 @@ impl std::fmt::Display for TTTAddr {
 /// The second member is the victory counters. +1 for naughts. -1 for crosses.
 /// Someone wins on a +3 or -3.
 /// It holds 8 numbers: 3 rows (top to bottom), 3 columns (left to rifht) and two diagonals (first the one that points to southeast, and the the one to northeast)
-#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, PartialOrd, Ord)]
 pub struct TTTBoard([Option<PlayerMark>; 9], [i32; 8]);
 
 impl Board<TTTAddr> for TTTBoard {
@@ -37,10 +37,17 @@ impl Board<TTTAddr> for TTTBoard {
             })
             .collect()
     }
-    fn game_is_over(&self) -> bool {
+
+    fn game_status(&self) -> crate::core::GameStatus {
         let board_full = self.0.iter().all(|&q| q.is_some());
-        let won = self.winner().is_some();
-        won || board_full
+        let winner = self.winner();
+        if let Some(p) = winner {
+            crate::core::GameStatus::Won(p)
+        } else if board_full {
+            crate::core::GameStatus::Draw
+        } else {
+            crate::core::GameStatus::Undecided
+        }
     }
     fn place_mark(&mut self, a: TTTAddr, marker: PlayerMark) {
         let addr = a.0;
@@ -67,10 +74,16 @@ impl Board<TTTAddr> for TTTBoard {
         }
         self.0[num] = Some(marker);
     }
+    fn current_player(&self) -> PlayerMark {
+        if self.n_moves_made() % 2 == 0 {
+            PlayerMark::Naught
+        } else {
+            PlayerMark::Cross
+        }
+    }
 }
 
 impl TTTBoard {
-
     /// Is there a winner?
     pub fn winner(&self) -> Option<PlayerMark> {
         let naught_won = self.1.iter().any(|&x| x == 3);
@@ -103,24 +116,14 @@ impl TTTBoard {
         Self([None; 9], [0; 8])
     }
 
-    pub fn n_moves_made(&self) -> f64 {
-        self.0.iter().map(|&q| q.is_some() as u64 as f64).sum()
-    }
-
-    fn player_to_make_mark(&self) -> PlayerMark {
-        let n_naughts = self.0.iter().filter(|&&x| x == Some(PlayerMark::Naught)).count();
-        let n_crosses = self.0.iter().filter(|&&x| x == Some(PlayerMark::Cross)).count();
-        if n_naughts == n_crosses {
-            PlayerMark::Naught
-        } else {
-            PlayerMark::Cross
-        }
+    pub fn n_moves_made(&self) -> usize {
+        self.0.iter().filter(|&q| q.is_some()).count()
     }
 }
 
 impl std::fmt::Display for TTTBoard {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let m = |m | match m {
+        let m = |m| match m {
             None => ' ',
             Some(PlayerMark::Cross) => 'X',
             Some(PlayerMark::Naught) => 'O',
@@ -157,15 +160,16 @@ impl Game for TicTacToe {
     type Board = TTTBoard;
     type Coordinate = TTTAddr;
     fn run(&mut self) {
-        let mut is_naught = true;
-        while !self.board.game_is_over() {
-            let action = if is_naught {
+        while matches!(self.board.game_status(), GameStatus::Undecided) {
+            let current_player = self.board.current_player();
+            let action = if current_player == PlayerMark::Naught {
                 self.player1.play(&self.board)
             } else {
                 self.player2.play(&self.board)
             };
-            self.update(action, is_naught);
-            is_naught = !is_naught;
+            let TTTAddr(num) = action;
+            println!("Player {current_player:?} placed marker at {num}");
+            self.board.place_mark(TTTAddr(num), current_player);
         }
         println!("{}", &self.board);
         if let Some(p) = self.board.winner() {
@@ -182,46 +186,5 @@ impl TicTacToe {
             player2: crosses,
             board: TTTBoard::new(),
         }
-    }
-
-    fn update(&mut self, a: TTTAddr, is_naught: bool) {
-        let player_mark = if is_naught {
-            PlayerMark::Naught
-        } else {
-            PlayerMark::Cross
-        };
-        match a {
-            TTTAddr(num) => {
-                println!("Player {player_mark:?} placed marker at {num}");
-                self.board.place_mark(TTTAddr(num), player_mark);
-            }
-        };
-    }
-}
-
-impl Mdp for TicTacToe {
-    type Action = TTTAddr;
-
-    type State = TTTBoard;
-
-    const DISCOUNT_FACTOR: f64 = -1.0;
-
-    fn act(board: TTTBoard, action: &TTTAddr) -> (TTTBoard, f64) {
-        let mut board = board;
-        let player_mark = board.player_to_make_mark();
-        board.place_mark(*action, player_mark);
-        let reward: f64 = match board.winner() {
-            Some(mark) => if player_mark == mark { 1.0 } else { -1.0 },
-            None => 0.0,
-        };
-        (board, reward)
-    }
-
-    fn is_terminal(s: &TTTBoard) -> bool {
-        s.game_is_over()
-    }
-
-    fn allowed_actions(s: &Self::State) -> Vec<Self::Action> {
-        s.valid_moves()
     }
 }

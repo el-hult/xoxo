@@ -47,7 +47,11 @@ pub trait Board<Coordinate>: Display {
     /// The coordinates where you are allowed to place your marker in this turn.
     fn valid_moves(&self) -> Vec<Coordinate>;
     fn place_mark(&mut self, a: Coordinate, marker: PlayerMark);
-    fn game_is_over(&self) -> bool;
+    fn game_status(&self) -> GameStatus;
+    fn current_player(&self) -> PlayerMark;
+    fn game_is_over(&self) -> bool {
+        !matches!(self.game_status(), GameStatus::Undecided)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, Ord, PartialOrd)]

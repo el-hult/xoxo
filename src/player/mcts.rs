@@ -10,10 +10,11 @@ use rand::rngs::StdRng;
 use rand::seq::IteratorRandom as _;
 use rand::SeedableRng;
 
+use std::fmt::Display;
 use std::hash::Hash;
 use std::{collections::HashMap, fmt::Debug};
 
-use crate::core::{Game, Player};
+use crate::core::{Board, Game, GameStatus, Player};
 
 pub(crate) trait Mdp {
     type Action: Clone + Debug + PartialEq + Eq + Hash + Ord;
@@ -221,11 +222,13 @@ impl<T:Mdp> MctsAi<T> {
     }
 
 impl<T,A,B> Player<T> for MctsAi<T>
-where T: Mdp<Action=A,State=B> + Game<Board=B,Coordinate=A>,
+where T: Mdp<Action=A,State=B> + Game<Board=B,Coordinate=A>, A: Display
 {
     fn play(&mut self, b: &B) -> A {
         run_train_steps::<T>(b, self.c, &mut self.qmap, &mut self.state_visit_counter, &mut self.rng,10000);
-        best_action::<T>(b, self.c, &self.qmap, &self.state_visit_counter, &mut self.rng)
+        let a= best_action::<T>(b, self.c, &self.qmap, &self.state_visit_counter, &mut self.rng);
+        println!("MCTS AI played {}", a);
+        a
     }
 }
 
@@ -234,5 +237,34 @@ pub(crate) fn get_c(game: crate::GameType) -> f64 {
         crate::GameType::Ttt => 1.0,
         crate::GameType::Uttt => 0.75,
         crate::GameType::C4 => 1.0,
+    }
+}
+
+impl<G:Game> Mdp for G 
+where G::Coordinate: Hash + Ord + Debug,
+ G::Board: Hash + Debug + Eq
+{
+    type Action = G::Coordinate;
+
+    type State = G::Board;
+
+    const DISCOUNT_FACTOR: f64 = -1.0;
+
+    fn act(mut board: Self::State, action: &Self::Action) -> (Self::State, f64) {
+        let player_mark = board.current_player();
+        board.place_mark(*action, player_mark);
+        let reward: f64 = match board.game_status() {
+            GameStatus::Won(mark) => if player_mark == mark { 1.0 } else { -1.0 },
+            _ => 0.0,
+        };
+        (board, reward)
+    }
+
+    fn is_terminal(s: &Self::State) -> bool {
+        !matches!(s.game_status(), crate::GameStatus::Undecided)
+    }
+
+    fn allowed_actions(s: &Self::State) -> Vec<Self::Action> {
+        s.valid_moves()
     }
 }

@@ -73,7 +73,7 @@ struct Args {
 }
 
 fn ttt_heuristic(my_marker: PlayerMark, b: &<TicTacToe as Game>::Board) -> f64 {
-    let n_moves_made: f64 = b.n_moves_made();
+    let n_moves_made: f64 = b.n_moves_made() as f64;
     match b.winner() {
         None => 0.0 + n_moves_made,
         Some(mark) => {
