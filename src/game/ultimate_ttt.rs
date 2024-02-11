@@ -1,8 +1,9 @@
-use crate::core::Board as BoardTrait;
+use std::fmt::Display;
 
-use self::mcts::Mdp;
-
-use super::*;
+use crate::{
+    core::{Board as BoardTrait, Game, GameStatus, Player, PlayerMark},
+    mcts::Mdp,
+};
 
 pub struct UltimateTicTacToe {
     board: Board,
@@ -56,7 +57,6 @@ pub struct Board {
     /// In the first move, this is None
     last_action: Option<Action>,
 }
-
 
 impl Board {
     fn new() -> Self {

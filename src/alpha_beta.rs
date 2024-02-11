@@ -114,8 +114,8 @@ impl<G: Game> Player<G> for ABAi<G> {
 #[cfg(test)]
 mod test {
     use crate::{
-        tictactoe::TTTAddr,
-        tictactoe::{TTTBoard, TicTacToe},
+        game::tictactoe::TTTAddr,
+        game::tictactoe::{TTTBoard, TicTacToe},
         ttt_heuristic, Player,
     };
 

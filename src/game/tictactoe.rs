@@ -1,6 +1,4 @@
-use super::Game;
-use super::{Player, PlayerMark};
-use crate::core::Board;
+use crate::core::{Board, Game, Player, PlayerMark};
 use crate::mcts::Mdp;
 
 /// Represents a coordinate on the board

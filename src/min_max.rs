@@ -99,11 +99,9 @@ impl<G:Game> Player<G> for MinMaxAi<G>
 #[cfg(test)]
 mod test {
     use crate::{
-        tictactoe::TTTAddr,
-        tictactoe::{TTTBoard, TicTacToe},
-        ttt_heuristic, min_max::MinMaxAi,
-        core::Player
+        game::tictactoe::{TTTAddr, TTTBoard, TicTacToe}, ttt_heuristic, Player
     };
+    use super::*;
 
     #[test]
     fn can_find_winning_move() {

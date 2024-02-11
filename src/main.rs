@@ -1,25 +1,23 @@
 mod alpha_beta;
 mod console_player;
 mod core;
+mod game;
 mod mcts;
 mod mcts_ai;
 mod min_max;
 mod random_ai;
-mod tictactoe;
-mod ultimate_ttt;
-mod connect_four;
 
-use connect_four::{C4Board, ConnectFour};
 use alpha_beta::ABAi;
 use clap::{Parser, ValueEnum};
 use console_player::ConsolePlayer;
 use core::{Game, GameStatus, Player, PlayerMark};
+use game::connect_four::{C4Board, ConnectFour};
+use game::tictactoe::TicTacToe;
+use game::ultimate_ttt::UltimateTicTacToe;
 use min_max::MinMaxAi;
 use rand::{rngs::StdRng, Rng as _, SeedableRng as _};
 use random_ai::RandomAi;
-use std::{f64::INFINITY, fmt::Display, io::BufRead};
-use tictactoe::TicTacToe;
-use ultimate_ttt::UltimateTicTacToe;
+use std::{f64::INFINITY, io::BufRead};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 enum PlayerType {
@@ -113,8 +111,7 @@ fn uttt_heuristic(my_marker: PlayerMark, b: &<UltimateTicTacToe as Game>::Board)
             _ => 0,
         })
         .sum();
-    let did_win_mid_supboard =
-        (b.get_sup_board()[1][1] == GameStatus::Won(my_marker)) as u8 as f64;
+    let did_win_mid_supboard = (b.get_sup_board()[1][1] == GameStatus::Won(my_marker)) as u8 as f64;
     let midpoint_balance = {
         let board = b.get_board();
         let mut n = 0;
@@ -147,10 +144,19 @@ fn uttt_heuristic(my_marker: PlayerMark, b: &<UltimateTicTacToe as Game>::Board)
 /// This heuristic is too crude
 /// Therefore, it does not generate a lot of pruning (since many states are considered equally good, few are pruned)
 fn c4_heuristic(my_marker: PlayerMark, b: &C4Board) -> f64 {
-    let raw_board:[[Option<PlayerMark>;6];7] = (*b).into();
-    let markers_in_col_3 = raw_board[2].iter().filter(|&&x| x == Some(my_marker)).count() as f64;
-    let markers_in_col_4 = raw_board[3].iter().filter(|&&x| x == Some(my_marker)).count() as f64;
-    let markers_in_col_5 = raw_board[4].iter().filter(|&&x| x == Some(my_marker)).count() as f64;
+    let raw_board: [[Option<PlayerMark>; 6]; 7] = (*b).into();
+    let markers_in_col_3 = raw_board[2]
+        .iter()
+        .filter(|&&x| x == Some(my_marker))
+        .count() as f64;
+    let markers_in_col_4 = raw_board[3]
+        .iter()
+        .filter(|&&x| x == Some(my_marker))
+        .count() as f64;
+    let markers_in_col_5 = raw_board[4]
+        .iter()
+        .filter(|&&x| x == Some(my_marker))
+        .count() as f64;
     let win = match b.winner() {
         Some(mark) => {
             if mark == my_marker {
@@ -161,7 +167,7 @@ fn c4_heuristic(my_marker: PlayerMark, b: &C4Board) -> f64 {
         }
         _ => 0.0,
     };
-    100.0*win + markers_in_col_3 + 2.0*markers_in_col_4 + markers_in_col_5
+    100.0 * win + markers_in_col_3 + 2.0 * markers_in_col_4 + markers_in_col_5
 }
 
 fn main() {
@@ -170,8 +176,8 @@ fn main() {
     println!("AI seed: {}", seed); // debug output
     let mut rng = StdRng::seed_from_u64(seed);
     let c = match args.c {
-        Some (c) => c,
-        None => mcts_ai::get_c(args.game)
+        Some(c) => c,
+        None => mcts_ai::get_c(args.game),
     };
     match args.game {
         GameType::Ttt => {
@@ -200,7 +206,7 @@ fn main() {
                 PlayerType::AlphaBeta => {
                     Box::new(ABAi::new(PlayerMark::Cross, ttt_heuristic, args.ab_depth))
                 }
-                PlayerType::Mcts => Box::new(mcts_ai::MctsAi::new(rng.gen(),c)),
+                PlayerType::Mcts => Box::new(mcts_ai::MctsAi::new(rng.gen(), c)),
             };
             let mut g = G::new(p1, p2);
             g.run()
@@ -218,7 +224,7 @@ fn main() {
                 PlayerType::AlphaBeta => {
                     Box::new(ABAi::new(PlayerMark::Naught, uttt_heuristic, args.ab_depth))
                 }
-                PlayerType::Mcts => Box::new(mcts_ai::MctsAi::new(rng.gen(),c)),
+                PlayerType::Mcts => Box::new(mcts_ai::MctsAi::new(rng.gen(), c)),
             };
             let p2: Box<dyn Player<G>> = match args.p2 {
                 PlayerType::Console => Box::new(ConsolePlayer::new(PlayerMark::Cross)),
@@ -231,7 +237,7 @@ fn main() {
                 PlayerType::AlphaBeta => {
                     Box::new(ABAi::new(PlayerMark::Cross, uttt_heuristic, args.ab_depth))
                 }
-                PlayerType::Mcts => Box::new(mcts_ai::MctsAi::new(rng.gen(),c)),
+                PlayerType::Mcts => Box::new(mcts_ai::MctsAi::new(rng.gen(), c)),
             };
             let mut g = G::new(p1, p2);
             g.run()
@@ -242,27 +248,27 @@ fn main() {
                 PlayerType::Console => Box::new(ConsolePlayer::new(PlayerMark::Naught)),
                 PlayerType::Random => Box::new(RandomAi::new(PlayerMark::Naught, rng.gen())),
                 PlayerType::Minimax => Box::new(MinMaxAi::new(
-                        PlayerMark::Naught,
-                        c4_heuristic,
-                        args.mm_depth,
-                    )),
-                    PlayerType::AlphaBeta => {
-                            Box::new(ABAi::new(PlayerMark::Naught, c4_heuristic, args.ab_depth))
+                    PlayerMark::Naught,
+                    c4_heuristic,
+                    args.mm_depth,
+                )),
+                PlayerType::AlphaBeta => {
+                    Box::new(ABAi::new(PlayerMark::Naught, c4_heuristic, args.ab_depth))
                 }
-                PlayerType::Mcts => Box::new(mcts_ai::MctsAi::new(rng.gen(),c)),
+                PlayerType::Mcts => Box::new(mcts_ai::MctsAi::new(rng.gen(), c)),
             };
             let p2: Box<dyn Player<G>> = match args.p2 {
                 PlayerType::Console => Box::new(ConsolePlayer::new(PlayerMark::Cross)),
                 PlayerType::Random => Box::new(RandomAi::new(PlayerMark::Cross, rng.gen())),
                 PlayerType::Minimax => Box::new(MinMaxAi::new(
-                        PlayerMark::Cross,
-                        c4_heuristic,
-                        args.mm_depth,
-                    )),
-                    PlayerType::AlphaBeta => {
-                            Box::new(ABAi::new(PlayerMark::Cross, c4_heuristic, args.ab_depth))
-                        }
-                PlayerType::Mcts => Box::new(mcts_ai::MctsAi::new(rng.gen(),c)),
+                    PlayerMark::Cross,
+                    c4_heuristic,
+                    args.mm_depth,
+                )),
+                PlayerType::AlphaBeta => {
+                    Box::new(ABAi::new(PlayerMark::Cross, c4_heuristic, args.ab_depth))
+                }
+                PlayerType::Mcts => Box::new(mcts_ai::MctsAi::new(rng.gen(), c)),
             };
             let mut g = G::new(p1, p2);
             g.run()
