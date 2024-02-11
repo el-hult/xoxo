@@ -1,8 +1,7 @@
-use std::ops::Sub;
+use std::{io::BufRead, ops::Sub};
 
-use crate::game::{tictactoe, ultimate_ttt};
+use crate::{core::{Game, Player, PlayerMark}, game::{connect_four::ConnectFour, tictactoe::{self, TicTacToe}, ultimate_ttt::{self, UltimateTicTacToe}}};
 
-use super::*;
 
 pub struct ConsolePlayer {
     pub name: String,

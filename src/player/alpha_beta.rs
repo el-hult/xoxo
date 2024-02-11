@@ -1,4 +1,5 @@
-use super::core::{Board, Game, HeuristicFn, Player, PlayerMark};
+use crate::core::{Board, Game, HeuristicFn, Player, PlayerMark};
+
 
 pub struct ABAi<G>
 where

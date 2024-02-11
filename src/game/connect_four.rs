@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{core::{Board, Game, Player, PlayerMark}, mcts::Mdp};
+use crate::{core::{Board, Game, Player, PlayerMark}, player::mcts::Mdp};
 
 pub struct ConnectFour {
     board: C4Board,
@@ -60,9 +60,9 @@ pub struct C4Board {
     board: [[Option<PlayerMark>; 6]; 7], 
 }
 
-impl Into<[[Option<PlayerMark>; 6]; 7]> for C4Board {
-    fn into(self) -> [[Option<PlayerMark>; 6]; 7] {
-        self.board
+impl From<C4Board> for [[Option<PlayerMark>; 6]; 7] {
+    fn from(val: C4Board) -> Self {
+        val.board
     }
 }
 
@@ -182,16 +182,16 @@ impl  C4Board {
         };
         for i in 0..n_chances {
             let (x,y) = match diag {
-                3 => (0+i,2+i),
-                4 => (0+i,1+i),
-                5 => (0+i,0+i),
-                6 => (1+i,0+i),
-                7 => (2+i,0+i),
-                8 => (3+i,0+i),
+                3 => (i,2+i),
+                4 => (i,1+i),
+                5 => (i,i),
+                6 => (1+i,i),
+                7 => (2+i,i),
+                8 => (3+i,i),
                 _ => unreachable!(),
             };
             let candidate = self.board[x][y];
-            if candidate == None{ return None;}
+            candidate?;
             if (1..4).all(|j| self.board[x+j][y+j] == candidate) {
                 return candidate;
             }
@@ -213,16 +213,16 @@ impl  C4Board {
         };
         for i in 0..n_chances {
             let (x,y) = match diag {
-                3 => (0+i,3-i),
-                4 => (0+i,4-i),
-                5 => (0+i,5-i),
+                3 => (i,3-i),
+                4 => (i,4-i),
+                5 => (i,5-i),
                 6 => (1+i,5-i),
                 7 => (2+i,5-i),
                 8 => (3+i,5-i),
                 _ => unreachable!(),
             };
             let candidate = self.board[x][y];
-            if candidate == None{ continue;}
+            if candidate.is_none(){ continue;}
             if (1..4).all(|j| self.board[x+j][y-j] == candidate) {
                 return candidate;
             }
@@ -347,6 +347,6 @@ mod tests {
         xoxxo..");
         assert_eq!(board.winner_in_backslash_diagonal(4), Some(PlayerMark::Naught));
         assert_eq!(board.winner(), Some(PlayerMark::Naught));
-        assert_eq!(board.game_is_over(), true);
+        assert!(board.game_is_over());
     }
 }

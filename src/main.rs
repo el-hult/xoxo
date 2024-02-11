@@ -1,23 +1,20 @@
-mod alpha_beta;
-mod console_player;
 mod core;
 mod game;
-mod mcts;
-mod mcts_ai;
-mod min_max;
-mod random_ai;
+mod player;
 
-use alpha_beta::ABAi;
+use player::alpha_beta::ABAi;
 use clap::{Parser, ValueEnum};
-use console_player::ConsolePlayer;
+use player::console_player::ConsolePlayer;
 use core::{Game, GameStatus, Player, PlayerMark};
 use game::connect_four::{C4Board, ConnectFour};
 use game::tictactoe::TicTacToe;
 use game::ultimate_ttt::UltimateTicTacToe;
-use min_max::MinMaxAi;
+use player::min_max::MinMaxAi;
 use rand::{rngs::StdRng, Rng as _, SeedableRng as _};
-use random_ai::RandomAi;
-use std::{f64::INFINITY, io::BufRead};
+use player::random_ai::RandomAi;
+use std::f64::INFINITY;
+
+use crate::player::mcts_ai;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 enum PlayerType {

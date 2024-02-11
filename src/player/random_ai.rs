@@ -1,8 +1,8 @@
 
 use rand::{rngs::StdRng, SeedableRng};
 
-use super::*;
-use crate::core::Board;
+
+use crate::core::{Board, Game, Player, PlayerMark};
 pub struct RandomAi<R> {
     rng: R,
     pub name: String,

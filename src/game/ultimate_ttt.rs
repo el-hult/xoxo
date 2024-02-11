@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::{
     core::{Board as BoardTrait, Game, GameStatus, Player, PlayerMark},
-    mcts::Mdp,
+    player::mcts::Mdp,
 };
 
 pub struct UltimateTicTacToe {

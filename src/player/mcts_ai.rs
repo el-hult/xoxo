@@ -3,7 +3,9 @@ use std::collections::HashMap;
 
 use rand::{rngs::StdRng, SeedableRng as _};
 
-use crate::{core::{Game, Player}, mcts::{best_action, run_train_steps, Mdp, QMap}};
+use crate::core::{Game, Player};
+
+use super::mcts::{best_action, run_train_steps, Mdp, QMap};
 
 pub(crate) struct MctsAi<T:Mdp> {
     qmap: QMap<T>,
