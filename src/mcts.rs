@@ -34,6 +34,7 @@ pub(crate) trait Mdp {
 
 pub(crate) fn mcts_step<M: Mdp>(
     state: &M::State,
+    c: f64,
     state_visit_counter: &mut HashMap<M::State, f64>,
     qmap: &mut QMap<M>,
     rng: &mut StdRng,
@@ -42,13 +43,13 @@ pub(crate) fn mcts_step<M: Mdp>(
         return 0.0;
     }
     let t = *state_visit_counter.get(state).unwrap_or(&0.0);
-    let best_action = best_action::<M>(state, qmap, state_visit_counter, rng);
+    let best_action = best_action::<M>(state, c, qmap, state_visit_counter, rng);
     let (new_state, reward) = M::act(state.clone(), &best_action);
     let state_was_new = state_visit_counter.get(state).is_none();
     let g_return = if state_was_new {
         reward + M::rollout(new_state, rng) * M::DISCOUNT_FACTOR
     } else {
-        reward + mcts_step::<M>(&new_state, state_visit_counter, qmap, rng) * M::DISCOUNT_FACTOR
+        reward + mcts_step::<M>(&new_state, c, state_visit_counter, qmap, rng) * M::DISCOUNT_FACTOR
     };
 
     // Update the Q-function and the visit counter
@@ -64,6 +65,7 @@ pub(crate) type QMap<M> = HashMap<(<M as Mdp>::State, <M as Mdp>::Action), (f64,
 
 pub(crate) fn best_action<M: Mdp>(
     state: &M::State,
+    c: f64, 
     qmap: &QMap<M>,
     state_visit_counter: &HashMap<M::State, f64>,
     rng: &mut StdRng,
@@ -76,7 +78,7 @@ pub(crate) fn best_action<M: Mdp>(
             let (w, v) = qmap
                 .get(&(state.clone(), action.clone()))
                 .unwrap_or(&(0.0, 0.0));
-            (action, ucb(*w, *v, t))
+            (action, ucb(c, *w, *v, t))
         })
         .max_set_by(|(_, ucb1), (_, ucb2)| ucb1.partial_cmp(ucb2).unwrap())
         .into_iter()
@@ -88,20 +90,22 @@ pub(crate) fn best_action<M: Mdp>(
 
 pub(crate) fn run_train_steps<M: Mdp>(
     b: &M::State,
+    c: f64,
     qmap: &mut QMap<M>,
     state_visit_counter: &mut HashMap<M::State, f64>,
     rng: &mut StdRng,
     n_rounds: usize,
 ) {
     for _ in 0..n_rounds {
-        mcts_step::<M>(b, state_visit_counter, qmap, rng);
+        mcts_step::<M>(b, c, state_visit_counter, qmap, rng);
     }
 }
 
 /// The UCB1 formula,
-/// the constant is something...
-fn ucb(tot_g: f64, n_visists: f64, time: f64) -> f64 {
-    let c: f64 = 0.75;
+/// the constant c needs to be passed in.
+/// by default, c=2.0 is often used
+/// if the branching factor is large, c should be smaller
+fn ucb(c: f64, tot_g: f64, n_visists: f64, time: f64) -> f64 {
     if n_visists == 0.0 {
         return f64::INFINITY;
     }
@@ -155,8 +159,9 @@ mod test {
         let mut state_visit_counter = HashMap::new();
         let mut qmap = HashMap::new();
         let mut rng = StdRng::from_entropy();
-        mcts_step::<CountGameMDP>(&root, &mut state_visit_counter, &mut qmap, &mut rng);
-        mcts_step::<CountGameMDP>(&root, &mut state_visit_counter, &mut qmap, &mut rng);
+        let c = 0.75;
+        mcts_step::<CountGameMDP>(&root,c, &mut state_visit_counter, &mut qmap, &mut rng);
+        mcts_step::<CountGameMDP>(&root,c, &mut state_visit_counter, &mut qmap, &mut rng);
         // The root state should have been visited twice
         assert!(state_visit_counter.contains_key(&root));
         assert_eq!(state_visit_counter[&root], 2.0);
@@ -179,8 +184,9 @@ mod test {
         let mut state_visit_counter = HashMap::new();
         let mut qmap = HashMap::new();
         let mut rng = StdRng::from_entropy();
-        run_train_steps::<CountGameMDP>(&root, &mut qmap, &mut state_visit_counter, &mut rng, 1000);
-        let best_move = best_action::<CountGameMDP>(&root, &qmap, &state_visit_counter, &mut rng);
+        let c = 0.75;
+        run_train_steps::<CountGameMDP>(&root, c,&mut qmap, &mut state_visit_counter, &mut rng, 1000);
+        let best_move = best_action::<CountGameMDP>(&root, c, &qmap, &state_visit_counter, &mut rng);
         assert_eq!(
             best_move,
             CountGameAction::Add,

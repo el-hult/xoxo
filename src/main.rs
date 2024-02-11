@@ -7,17 +7,19 @@ mod min_max;
 mod random_ai;
 mod tictactoe;
 mod ultimate_ttt;
+mod connect_four;
 
+use connect_four::{C4Board, ConnectFour};
 use alpha_beta::ABAi;
 use clap::{Parser, ValueEnum};
 use console_player::ConsolePlayer;
-use core::{Game, Player, PlayerMark};
+use core::{Game, GameStatus, Player, PlayerMark};
 use min_max::MinMaxAi;
 use rand::{rngs::StdRng, Rng as _, SeedableRng as _};
 use random_ai::RandomAi;
 use std::{f64::INFINITY, fmt::Display, io::BufRead};
 use tictactoe::TicTacToe;
-use ultimate_ttt::{BoardStatus, UltimateTicTacToe};
+use ultimate_ttt::UltimateTicTacToe;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 enum PlayerType {
@@ -25,7 +27,7 @@ enum PlayerType {
     Random,
     Minimax,
     AlphaBeta,
-    MctsAi,
+    Mcts,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
@@ -34,6 +36,8 @@ enum GameType {
     Ttt,
     /// Ultimate Tic-Tac-Toe
     Uttt,
+    /// Connect Four
+    C4,
 }
 
 /// A Tic-Tac-Toe game for the command line, with a cool AI integrated!
@@ -59,12 +63,18 @@ struct Args {
 
     /// The depth of the alpha-beta algorithm
     /// Only used for alpha-beta ai, if used
-    #[arg(long, default_value = "8")]
+    #[arg(long, default_value = "7")]
     ab_depth: usize,
 
     /// The seed for the random number generator (when used)
     #[arg(long)]
     seed: Option<u64>,
+
+    /// The exploration constant for the MCTS algorithm
+    /// Only used for MCTS ai, if used
+    /// If None, the value is determined by game-specific deafults
+    #[arg(long)]
+    c: Option<f64>,
 }
 
 fn ttt_heuristic(my_marker: PlayerMark, b: &<TicTacToe as Game>::Board) -> f64 {
@@ -93,7 +103,7 @@ fn uttt_heuristic(my_marker: PlayerMark, b: &<UltimateTicTacToe as Game>::Board)
         .iter()
         .flatten()
         .map(|&x| match x {
-            ultimate_ttt::BoardStatus::Won(marker) => {
+            GameStatus::Won(marker) => {
                 if marker == my_marker {
                     1
                 } else {
@@ -104,7 +114,7 @@ fn uttt_heuristic(my_marker: PlayerMark, b: &<UltimateTicTacToe as Game>::Board)
         })
         .sum();
     let did_win_mid_supboard =
-        (b.get_sup_board()[1][1] == ultimate_ttt::BoardStatus::Won(my_marker)) as u8 as f64;
+        (b.get_sup_board()[1][1] == GameStatus::Won(my_marker)) as u8 as f64;
     let midpoint_balance = {
         let board = b.get_board();
         let mut n = 0;
@@ -118,8 +128,8 @@ fn uttt_heuristic(my_marker: PlayerMark, b: &<UltimateTicTacToe as Game>::Board)
         n as f64
     };
     let win_bonus = match b.get_winner() {
-        ultimate_ttt::BoardStatus::Undecided | ultimate_ttt::BoardStatus::Draw => 0.0,
-        BoardStatus::Won(mark) => {
+        GameStatus::Undecided | GameStatus::Draw => 0.0,
+        GameStatus::Won(mark) => {
             if mark == my_marker {
                 INFINITY
             } else {
@@ -134,11 +144,35 @@ fn uttt_heuristic(my_marker: PlayerMark, b: &<UltimateTicTacToe as Game>::Board)
         + 10.0 * midpoint_balance
 }
 
+/// This heuristic is too crude
+/// Therefore, it does not generate a lot of pruning (since many states are considered equally good, few are pruned)
+fn c4_heuristic(my_marker: PlayerMark, b: &C4Board) -> f64 {
+    let raw_board:[[Option<PlayerMark>;6];7] = (*b).into();
+    let markers_in_col_3 = raw_board[2].iter().filter(|&&x| x == Some(my_marker)).count() as f64;
+    let markers_in_col_4 = raw_board[3].iter().filter(|&&x| x == Some(my_marker)).count() as f64;
+    let markers_in_col_5 = raw_board[4].iter().filter(|&&x| x == Some(my_marker)).count() as f64;
+    let win = match b.winner() {
+        Some(mark) => {
+            if mark == my_marker {
+                1.0
+            } else {
+                -1.0
+            }
+        }
+        _ => 0.0,
+    };
+    100.0*win + markers_in_col_3 + 2.0*markers_in_col_4 + markers_in_col_5
+}
+
 fn main() {
     let args = Args::parse();
     let seed = args.seed.unwrap_or(StdRng::from_entropy().gen());
-    println!("Seed: {}", seed);
+    println!("AI seed: {}", seed); // debug output
     let mut rng = StdRng::seed_from_u64(seed);
+    let c = match args.c {
+        Some (c) => c,
+        None => mcts_ai::get_c(args.game)
+    };
     match args.game {
         GameType::Ttt => {
             type G = TicTacToe;
@@ -153,7 +187,7 @@ fn main() {
                 PlayerType::AlphaBeta => {
                     Box::new(ABAi::new(PlayerMark::Naught, ttt_heuristic, args.ab_depth))
                 }
-                PlayerType::MctsAi => Box::new(mcts_ai::MctsAi::new(rng.gen())),
+                PlayerType::Mcts => Box::new(mcts_ai::MctsAi::new(rng.gen(), c)),
             };
             let p2: Box<dyn Player<G>> = match args.p2 {
                 PlayerType::Console => Box::new(ConsolePlayer::new(PlayerMark::Cross)),
@@ -166,7 +200,7 @@ fn main() {
                 PlayerType::AlphaBeta => {
                     Box::new(ABAi::new(PlayerMark::Cross, ttt_heuristic, args.ab_depth))
                 }
-                PlayerType::MctsAi => Box::new(mcts_ai::MctsAi::new(rng.gen())),
+                PlayerType::Mcts => Box::new(mcts_ai::MctsAi::new(rng.gen(),c)),
             };
             let mut g = G::new(p1, p2);
             g.run()
@@ -184,7 +218,7 @@ fn main() {
                 PlayerType::AlphaBeta => {
                     Box::new(ABAi::new(PlayerMark::Naught, uttt_heuristic, args.ab_depth))
                 }
-                PlayerType::MctsAi => Box::new(mcts_ai::MctsAi::new(rng.gen())),
+                PlayerType::Mcts => Box::new(mcts_ai::MctsAi::new(rng.gen(),c)),
             };
             let p2: Box<dyn Player<G>> = match args.p2 {
                 PlayerType::Console => Box::new(ConsolePlayer::new(PlayerMark::Cross)),
@@ -197,7 +231,38 @@ fn main() {
                 PlayerType::AlphaBeta => {
                     Box::new(ABAi::new(PlayerMark::Cross, uttt_heuristic, args.ab_depth))
                 }
-                PlayerType::MctsAi => Box::new(mcts_ai::MctsAi::new(rng.gen())),
+                PlayerType::Mcts => Box::new(mcts_ai::MctsAi::new(rng.gen(),c)),
+            };
+            let mut g = G::new(p1, p2);
+            g.run()
+        }
+        GameType::C4 => {
+            type G = ConnectFour;
+            let p1: Box<dyn Player<G>> = match args.p1 {
+                PlayerType::Console => Box::new(ConsolePlayer::new(PlayerMark::Naught)),
+                PlayerType::Random => Box::new(RandomAi::new(PlayerMark::Naught, rng.gen())),
+                PlayerType::Minimax => Box::new(MinMaxAi::new(
+                        PlayerMark::Naught,
+                        c4_heuristic,
+                        args.mm_depth,
+                    )),
+                    PlayerType::AlphaBeta => {
+                            Box::new(ABAi::new(PlayerMark::Naught, c4_heuristic, args.ab_depth))
+                }
+                PlayerType::Mcts => Box::new(mcts_ai::MctsAi::new(rng.gen(),c)),
+            };
+            let p2: Box<dyn Player<G>> = match args.p2 {
+                PlayerType::Console => Box::new(ConsolePlayer::new(PlayerMark::Cross)),
+                PlayerType::Random => Box::new(RandomAi::new(PlayerMark::Cross, rng.gen())),
+                PlayerType::Minimax => Box::new(MinMaxAi::new(
+                        PlayerMark::Cross,
+                        c4_heuristic,
+                        args.mm_depth,
+                    )),
+                    PlayerType::AlphaBeta => {
+                            Box::new(ABAi::new(PlayerMark::Cross, c4_heuristic, args.ab_depth))
+                        }
+                PlayerType::Mcts => Box::new(mcts_ai::MctsAi::new(rng.gen(),c)),
             };
             let mut g = G::new(p1, p2);
             g.run()

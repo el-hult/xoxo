@@ -47,33 +47,28 @@ pub struct Board {
     /// None if the game is still running
     /// Some(None) if the game is a draw
     /// Some(Some(PlayerMark)) if the game is won by that player
-    sup_board_status: BoardStatus,
+    sup_board_status: GameStatus,
     /// The status of the super-board
     /// The super-board is a normal tictactoe board
     /// While being computable from the board, it is easier to keep track of it separately
-    sup_board: [[BoardStatus; 3]; 3],
+    sup_board: [[GameStatus; 3]; 3],
     /// The last action taken decides the next board to play in
     /// In the first move, this is None
     last_action: Option<Action>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, Ord, PartialOrd)]
-pub enum BoardStatus {
-    Undecided,
-    Draw,
-    Won(PlayerMark),
-}
+
 impl Board {
     fn new() -> Self {
         Self {
-            sup_board: [[BoardStatus::Undecided; 3]; 3],
+            sup_board: [[GameStatus::Undecided; 3]; 3],
             board: [[[[None; 3]; 3]; 3]; 3],
-            sup_board_status: BoardStatus::Undecided,
+            sup_board_status: GameStatus::Undecided,
             last_action: None,
         }
     }
 
-    pub fn get_sup_board(&self) -> &[[BoardStatus; 3]; 3] {
+    pub fn get_sup_board(&self) -> &[[GameStatus; 3]; 3] {
         &self.sup_board
     }
 
@@ -81,7 +76,7 @@ impl Board {
     /// indexed 0-2
     pub fn target_board(&self) -> Option<(usize, usize)> {
         self.last_action.and_then(|a| {
-            if self.sup_board[a.position.0][a.position.1] == BoardStatus::Undecided {
+            if self.sup_board[a.position.0][a.position.1] == GameStatus::Undecided {
                 Some(a.position)
             } else {
                 None
@@ -117,41 +112,41 @@ impl Board {
             && sub_board[2][0] == Some(mark);
         let won_sub_board = won_row || won_col || won_diag_se || won_diag_ne;
         if won_sub_board {
-            self.sup_board[action.board.0][action.board.1] = BoardStatus::Won(mark);
+            self.sup_board[action.board.0][action.board.1] = GameStatus::Won(mark);
         }
         // check if the sub-board is a draw
         let sub_board_full = sub_board.iter().all(|row| row.iter().all(|&x| x.is_some()));
         if sub_board_full && !won_sub_board {
-            self.sup_board[action.board.0][action.board.1] = BoardStatus::Draw;
+            self.sup_board[action.board.0][action.board.1] = GameStatus::Draw;
         }
 
         // check if the super-board is won
-        let won_row = self.sup_board[sub_row][0] == BoardStatus::Won(mark)
-            && self.sup_board[sub_row][1] == BoardStatus::Won(mark)
-            && self.sup_board[sub_row][2] == BoardStatus::Won(mark);
-        let won_col = self.sup_board[0][sub_col] == BoardStatus::Won(mark)
-            && self.sup_board[1][sub_col] == BoardStatus::Won(mark)
-            && self.sup_board[2][sub_col] == BoardStatus::Won(mark);
+        let won_row = self.sup_board[sub_row][0] == GameStatus::Won(mark)
+            && self.sup_board[sub_row][1] == GameStatus::Won(mark)
+            && self.sup_board[sub_row][2] == GameStatus::Won(mark);
+        let won_col = self.sup_board[0][sub_col] == GameStatus::Won(mark)
+            && self.sup_board[1][sub_col] == GameStatus::Won(mark)
+            && self.sup_board[2][sub_col] == GameStatus::Won(mark);
         let won_diag_se = sub_col == sub_row
-            && self.sup_board[0][0] == BoardStatus::Won(mark)
-            && self.sup_board[1][1] == BoardStatus::Won(mark)
-            && self.sup_board[2][2] == BoardStatus::Won(mark);
+            && self.sup_board[0][0] == GameStatus::Won(mark)
+            && self.sup_board[1][1] == GameStatus::Won(mark)
+            && self.sup_board[2][2] == GameStatus::Won(mark);
         let won_diag_ne = sub_col == 2 - sub_row
-            && self.sup_board[0][2] == BoardStatus::Won(mark)
-            && self.sup_board[1][1] == BoardStatus::Won(mark)
-            && self.sup_board[2][0] == BoardStatus::Won(mark);
+            && self.sup_board[0][2] == GameStatus::Won(mark)
+            && self.sup_board[1][1] == GameStatus::Won(mark)
+            && self.sup_board[2][0] == GameStatus::Won(mark);
         let won_super_board = won_row || won_col || won_diag_se || won_diag_ne;
         if won_super_board {
-            self.sup_board_status = BoardStatus::Won(mark);
+            self.sup_board_status = GameStatus::Won(mark);
         }
 
         // check if the super-board is a draw
         let super_board_full = self
             .sup_board
             .iter()
-            .all(|row| row.iter().all(|&x| x != BoardStatus::Undecided));
+            .all(|row| row.iter().all(|&x| x != GameStatus::Undecided));
         if super_board_full && !won_super_board {
-            self.sup_board_status = BoardStatus::Draw;
+            self.sup_board_status = GameStatus::Draw;
         }
 
         self.last_action = Some(action);
@@ -166,7 +161,7 @@ impl Board {
         let desired_target_board = self.last_action.unwrap().position;
 
         // if the target board is running, verify that the new move is in that board
-        if self.sup_board[desired_target_board.0][desired_target_board.1] == BoardStatus::Undecided
+        if self.sup_board[desired_target_board.0][desired_target_board.1] == GameStatus::Undecided
             && action.board != desired_target_board
         {
             return false;
@@ -181,7 +176,7 @@ impl Board {
 
         true
     }
-    pub fn get_winner(&self) -> BoardStatus {
+    pub fn get_winner(&self) -> GameStatus {
         self.sup_board_status
     }
     pub fn n_moves_made(&self) -> usize {
@@ -262,7 +257,7 @@ impl Game for UltimateTicTacToe {
     type Board = Board;
     type Coordinate = Action;
     fn run(&mut self) {
-        while self.board.sup_board_status == BoardStatus::Undecided {
+        while self.board.sup_board_status == GameStatus::Undecided {
             let action = if self.turn == PlayerMark::Naught {
                 self.player_naught.play(&self.board)
             } else {
@@ -271,7 +266,7 @@ impl Game for UltimateTicTacToe {
             self.update(action);
         }
         println!("{}", &self.board);
-        if let BoardStatus::Won(p) = self.board.sup_board_status {
+        if let GameStatus::Won(p) = self.board.sup_board_status {
             println!("Player {:?} won", p);
         }
         println!(
@@ -313,7 +308,7 @@ impl BoardTrait<Action> for Board {
         let mut moves = vec![];
         for i in 0..3 {
             for j in 0..3 {
-                if self.sup_board[i][j] != BoardStatus::Undecided {
+                if self.sup_board[i][j] != GameStatus::Undecided {
                     continue;
                 }
                 for k in 0..3 {
@@ -332,7 +327,7 @@ impl BoardTrait<Action> for Board {
         self.place_mark(a, marker);
     }
     fn game_is_over(&self) -> bool {
-        !matches!(self.sup_board_status, BoardStatus::Undecided)
+        !matches!(self.sup_board_status, GameStatus::Undecided)
     }
 }
 
@@ -351,14 +346,14 @@ impl Mdp for UltimateTicTacToe {
         let player_mark = s.player_to_go();
         s.place_mark(*action, player_mark);
         let reward: f64 = match s.sup_board_status {
-            BoardStatus::Won(mark) => {
+            GameStatus::Won(mark) => {
                 if player_mark == mark {
                     1.0
                 } else {
                     -1.0
                 }
             }
-            BoardStatus::Draw => 0.0,
+            GameStatus::Draw => 0.0,
             _ => 0.0,
         };
         (s, reward)

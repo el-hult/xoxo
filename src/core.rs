@@ -49,3 +49,10 @@ pub trait Board<Coordinate>: Display {
     fn place_mark(&mut self, a: Coordinate, marker: PlayerMark);
     fn game_is_over(&self) -> bool;
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, Ord, PartialOrd)]
+pub enum GameStatus {
+    Undecided,
+    Draw,
+    Won(PlayerMark),
+}
