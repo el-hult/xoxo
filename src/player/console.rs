@@ -1,6 +1,6 @@
 use std::{io::BufRead, ops::Sub};
 
-use crate::{core::{Game, Player, PlayerMark}, game::{connect_four::ConnectFour, tictactoe::{self, TicTacToe}, ultimate_ttt::{self, UltimateTicTacToe}}};
+use crate::{core::{Player, PlayerMark}, game::{connect_four::{C4Board}, tictactoe::{self, TTTAddr, TTTBoard}, ultimate_ttt::{self}}};
 
 
 pub struct ConsolePlayer {
@@ -17,8 +17,8 @@ impl ConsolePlayer {
         }
     }
 }
-impl Player<TicTacToe> for ConsolePlayer {
-    fn play(&mut self, b: &<TicTacToe as Game>::Board) -> tictactoe::TTTAddr {
+impl Player<TTTBoard,TTTAddr> for ConsolePlayer {
+    fn play(&mut self, b: &TTTBoard) -> tictactoe::TTTAddr {
         println!("Time for {} to make a move", self.name);
         print!("{}", b);
         println!("Input a number 1-9 to make a move 1 = top left, 9 = bottom right");
@@ -39,7 +39,7 @@ impl Player<TicTacToe> for ConsolePlayer {
         tictactoe::TTTAddr(num)
     }
 }
-impl Player<UltimateTicTacToe> for ConsolePlayer {
+impl Player<ultimate_ttt::Board,ultimate_ttt::Action> for ConsolePlayer {
     fn play(&mut self, b: &ultimate_ttt::Board) -> ultimate_ttt::Action {
         println!("Time for {} to make a move", self.name);
         print!("{}", b);
@@ -70,8 +70,8 @@ impl Player<UltimateTicTacToe> for ConsolePlayer {
     }
 }
 
-impl Player<ConnectFour> for ConsolePlayer {
-    fn play(&mut self, b: &<ConnectFour as Game>::Board) -> usize {
+impl Player<C4Board,usize> for ConsolePlayer {
+    fn play(&mut self, b: &C4Board) -> usize {
         println!("Time for {} to make a move", self.name);
         print!("{}", b);
         println!("Input a number 1-7 to make a move 1 = leftmost, 7 = rightmost");

@@ -73,7 +73,7 @@ impl<G:Game> MinMaxAi<G>
     }
 }
 
-impl<G:Game> Player<G> for MinMaxAi<G>
+impl<G:Game> Player<G::Board,G::Coordinate> for MinMaxAi<G>
 {
     fn play(&mut self, b: &G::Board) -> G::Coordinate {
         let res = b

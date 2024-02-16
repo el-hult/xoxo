@@ -221,8 +221,8 @@ impl<T:Mdp> MctsAi<T> {
         }
     }
 
-impl<T,A,B> Player<T> for MctsAi<T>
-where T: Mdp<Action=A,State=B> + Game<Board=B,Coordinate=A>, A: Display
+impl<T,A,B> Player<B,A> for MctsAi<T>
+where T: Mdp<Action=A,State=B>, A: Display, B: Board<A>
 {
     fn play(&mut self, b: &B) -> A {
         run_train_steps::<T>(b, self.c, &mut self.qmap, &mut self.state_visit_counter, &mut self.rng,10000);

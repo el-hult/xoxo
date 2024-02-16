@@ -88,7 +88,7 @@ impl<G: Game> ABAi<G> {
     }
 }
 
-impl<G: Game> Player<G> for ABAi<G> {
+impl<G: Game> Player<G::Board,G::Coordinate> for ABAi<G> {
     fn play(&mut self, b: &G::Board) -> G::Coordinate {
         let res = b
             .valid_moves()

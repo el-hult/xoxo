@@ -1,19 +1,22 @@
 
+use std::fmt::Display;
+
 use rand::{rngs::StdRng, SeedableRng};
 
 
-use crate::core::{Board, Game, Player, PlayerMark};
+use crate::core::{Board, Player, PlayerMark};
 pub struct RandomAi<R> {
     rng: R,
     pub name: String,
 }
 
-impl<Rng, G> Player<G> for RandomAi<Rng>
+impl<Rng, B,C> Player<B,C> for RandomAi<Rng>
 where
     Rng: rand::Rng,
-    G: Game,
+    B: Board<C>,
+    C: Display + Copy
 {
-    fn play(&mut self, b: &G::Board) -> G::Coordinate {
+    fn play(&mut self, b: &B) -> C {
         let moves: Vec<_> = b.valid_moves();
         let idx = self.rng.next_u32() as usize % moves.len();
         println!("Random AI `{}` plays {}", self.name, moves[idx]);

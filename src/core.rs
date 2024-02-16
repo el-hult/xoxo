@@ -21,13 +21,13 @@ impl PlayerMark {
 }
 
 /// The Player trait is the struct that represents a player.
-pub trait Player<G>
+pub trait Player<B,C>
 where
-    G: Game,
+    B : Board<C>, C:Display
 {
     /// The play function is the main mechanic for the AIs
     /// You observe the whole board through a reference, and can do whatever you like, and then you return an action representing where to play
-    fn play(&mut self, b: &G::Board) -> G::Coordinate;
+    fn play(&mut self, b: &B) -> C;
 }
 
 
@@ -42,7 +42,9 @@ pub trait Game {
     type Board: Board<Self::Coordinate> + Copy + Default;
 }
 
-pub trait Board<Coordinate>: Display {
+pub trait Board<Coordinate>: Display 
+where Coordinate: Display
+{
     /// The coordinates where you are allowed to place your marker in this turn.
     fn valid_moves(&self) -> Vec<Coordinate>;
     fn place_mark(&mut self, a: Coordinate, marker: PlayerMark);
@@ -60,7 +62,7 @@ pub enum GameStatus {
     Won(PlayerMark),
 }
 
-pub(crate) fn run_game<G:Game>(mut p1: Box<dyn Player<G>>, mut p2: Box<dyn Player<G>>) {
+pub(crate) fn run_game<G:Game>(mut p1: Box<dyn Player<G::Board,G::Coordinate>>, mut p2: Box<dyn Player<G::Board,G::Coordinate>>) {
     let mut current_player = PlayerMark::Naught;
     let mut board = G::Board::default();
     while !board.game_is_over() {
