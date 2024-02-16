@@ -1,46 +1,13 @@
 use std::fmt::Display;
 
-use crate::core::{Board, Game, GameStatus, Player, PlayerMark};
+use crate::core::{Board, Game, GameStatus, PlayerMark};
 
-pub struct ConnectFour {
-    board: C4Board,
-    current_player: PlayerMark,
-    p1: Box<dyn Player<Self>>,
-    p2: Box<dyn Player<Self>>,
-}
+pub struct ConnectFour {}
 
-impl ConnectFour {
-    pub fn new(p1:Box<dyn Player<Self>>,
-    p2:Box<dyn Player<Self>>) -> Self {
-        Self {
-            board: C4Board::default(),
-            current_player: PlayerMark::Naught,
-            p1,
-            p2,
-        }
-    }
-}
 
 impl Game for ConnectFour {
     type Coordinate = usize;
-
     type Board = C4Board;
-
-    fn run(&mut self) {
-        while !self.board.game_is_over() {
-            let action = match self.current_player {
-                PlayerMark::Naught => self.p1.play(&self.board),
-                PlayerMark::Cross => self.p2.play(&self.board),
-            };
-            self.board.place_mark(action, self.current_player);
-            self.current_player = self.current_player.other();
-        }
-        println!("{}", &self.board);
-        if let Some(p) = self.board.winner() {
-            println!("Player {:?} won", p);
-        }
-        println!("Game over.");
-    }
 }
 
 /// A board is a 7x6 grid, where you can place a marker in one of the 7 columns

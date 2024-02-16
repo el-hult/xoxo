@@ -1,35 +1,8 @@
 use std::fmt::Display;
 
-use crate::core::{Board as BoardTrait, Game, GameStatus, Player, PlayerMark};
+use crate::core::{Board as BoardTrait, Game, GameStatus, PlayerMark};
 
-pub struct UltimateTicTacToe {
-    board: Board,
-    current_player: PlayerMark,
-    player_naught: Box<dyn Player<UltimateTicTacToe>>,
-    player_cross: Box<dyn Player<UltimateTicTacToe>>,
-}
-
-impl UltimateTicTacToe {
-    pub fn new(
-        naughts: Box<dyn Player<UltimateTicTacToe>>,
-        crosses: Box<dyn Player<UltimateTicTacToe>>,
-    ) -> Self {
-        Self {
-            board: Board::new(),
-            current_player: PlayerMark::Naught,
-            player_naught: naughts,
-            player_cross: crosses,
-        }
-    }
-
-    /// Update the game state board with the given action
-    /// Remember that the win condition must be updated at the end..
-    fn update(&mut self, action: Action) {
-        self.board.validate(action);
-        self.board.place_mark(action, self.current_player);
-        self.current_player = self.current_player.other();
-    }
-}
+pub struct UltimateTicTacToe {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
 pub struct Board {
@@ -55,8 +28,8 @@ pub struct Board {
     last_action: Option<Action>,
 }
 
-impl Board {
-    fn new() -> Self {
+impl Default for Board {
+    fn default() -> Self {
         Self {
             sup_board: [[GameStatus::Undecided; 3]; 3],
             board: [[[[None; 3]; 3]; 3]; 3],
@@ -64,7 +37,9 @@ impl Board {
             last_action: None,
         }
     }
+}
 
+impl Board {
     pub fn get_sup_board(&self) -> &[[GameStatus; 3]; 3] {
         &self.sup_board
     }
@@ -227,24 +202,6 @@ impl TryFrom<(usize, usize, usize, usize)> for Action {
 impl Game for UltimateTicTacToe {
     type Board = Board;
     type Coordinate = Action;
-    fn run(&mut self) {
-        while self.board.sup_board_status == GameStatus::Undecided {
-            let action = if self.current_player == PlayerMark::Naught {
-                self.player_naught.play(&self.board)
-            } else {
-                self.player_cross.play(&self.board)
-            };
-            self.update(action);
-        }
-        println!("{}", &self.board);
-        if let GameStatus::Won(p) = self.board.sup_board_status {
-            println!("Player {:?} won", p);
-        }
-        println!(
-            "Game over. The game lasted {} moves. Thanks for playing!",
-            self.board.n_moves_made()
-        );
-    }
 }
 
 impl Display for Board {

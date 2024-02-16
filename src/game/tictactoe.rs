@@ -1,4 +1,4 @@
-use crate::core::{Board, Game, GameStatus, Player, PlayerMark};
+use crate::core::{Board, Game, PlayerMark};
 
 /// Represents a coordinate on the board
 ///
@@ -21,6 +21,7 @@ impl std::fmt::Display for TTTAddr {
 /// Someone wins on a +3 or -3.
 /// It holds 8 numbers: 3 rows (top to bottom), 3 columns (left to rifht) and two diagonals (first the one that points to southeast, and the the one to northeast)
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Default)]
 pub struct TTTBoard([Option<PlayerMark>; 9], [i32; 8]);
 
 impl Board<TTTAddr> for TTTBoard {
@@ -101,7 +102,7 @@ impl TTTBoard {
 
     #[cfg(test)]
     pub fn from_str(s: &str) -> Self {
-        let mut b: Self = Self::new();
+        let mut b: Self = Self::default();
         assert!(s.len() == 9);
         s.chars().enumerate().for_each(|(num, c)| match c {
             'x' => b.place_mark(TTTAddr(num + 1), PlayerMark::Cross),
@@ -112,14 +113,12 @@ impl TTTBoard {
         b
     }
 
-    fn new() -> Self {
-        Self([None; 9], [0; 8])
-    }
-
     pub fn n_moves_made(&self) -> usize {
         self.0.iter().filter(|&q| q.is_some()).count()
     }
 }
+
+
 
 impl std::fmt::Display for TTTBoard {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -148,43 +147,10 @@ impl std::fmt::Display for TTTBoard {
     }
 }
 
-/// The holder of the game state, and the state of the players
-/// This struct is a bit nasty, because it is kind of a world-object
 pub struct TicTacToe {
-    player1: Box<dyn Player<TicTacToe>>,
-    player2: Box<dyn Player<TicTacToe>>,
-    board: TTTBoard,
 }
 
 impl Game for TicTacToe {
     type Board = TTTBoard;
     type Coordinate = TTTAddr;
-    fn run(&mut self) {
-        while matches!(self.board.game_status(), GameStatus::Undecided) {
-            let current_player = self.board.current_player();
-            let action = if current_player == PlayerMark::Naught {
-                self.player1.play(&self.board)
-            } else {
-                self.player2.play(&self.board)
-            };
-            let TTTAddr(num) = action;
-            println!("Player {current_player:?} placed marker at {num}");
-            self.board.place_mark(TTTAddr(num), current_player);
-        }
-        println!("{}", &self.board);
-        if let Some(p) = self.board.winner() {
-            println!("Player {:?} won", p);
-        }
-        println!("Game over.");
-    }
-}
-
-impl TicTacToe {
-    pub fn new(naughts: Box<dyn Player<TicTacToe>>, crosses: Box<dyn Player<TicTacToe>>) -> Self {
-        Self {
-            player1: naughts,
-            player2: crosses,
-            board: TTTBoard::new(),
-        }
-    }
 }

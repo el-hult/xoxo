@@ -39,8 +39,7 @@ pub type HeuristicFn<G> = fn(PlayerMark, &<G as Game>::Board) -> f64;
 pub trait Game {
     /// The coordinate type is the type of the coordinates on the board
     type Coordinate: Copy + Display;
-    type Board: Board<Self::Coordinate> + Copy;
-    fn run(&mut self);
+    type Board: Board<Self::Coordinate> + Copy + Default;
 }
 
 pub trait Board<Coordinate>: Display {
@@ -59,4 +58,23 @@ pub enum GameStatus {
     Undecided,
     Draw,
     Won(PlayerMark),
+}
+
+pub(crate) fn run_game<G:Game>(mut p1: Box<dyn Player<G>>, mut p2: Box<dyn Player<G>>) {
+    let mut current_player = PlayerMark::Naught;
+    let mut board = G::Board::default();
+    while !board.game_is_over() {
+        let action = match current_player {
+            PlayerMark::Naught => p1.play(&board),
+            PlayerMark::Cross => p2.play(&board),
+        };
+        board.place_mark(action, current_player);
+        current_player = current_player.other();
+    }
+    println!("{}", &board);
+    if let GameStatus::Won(p) = board.game_status() {
+        println!("Player {:?} won", p);
+    }
+    println!("Game over.");
+
 }

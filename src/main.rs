@@ -14,6 +14,7 @@ use rand::{rngs::StdRng, Rng as _, SeedableRng as _};
 use player::random::RandomAi;
 use std::f64::INFINITY;
 
+use crate::core::run_game;
 use crate::player::mcts::{get_c, MctsAi};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
@@ -205,8 +206,7 @@ fn main() {
                 }
                 PlayerType::Mcts => Box::new(MctsAi::new(rng.gen(), c)),
             };
-            let mut g = G::new(p1, p2);
-            g.run()
+            run_game::<G>(p1,p2)
         }
         GameType::Uttt => {
             type G = UltimateTicTacToe;
@@ -236,8 +236,7 @@ fn main() {
                 }
                 PlayerType::Mcts => Box::new(MctsAi::new(rng.gen(), c)),
             };
-            let mut g = G::new(p1, p2);
-            g.run()
+            run_game::<G>(p1,p2)
         }
         GameType::C4 => {
             type G = ConnectFour;
@@ -267,8 +266,7 @@ fn main() {
                 }
                 PlayerType::Mcts => Box::new(MctsAi::new(rng.gen(), c)),
             };
-            let mut g = G::new(p1, p2);
-            g.run()
+            run_game::<G>(p1,p2)
         }
     };
 }
