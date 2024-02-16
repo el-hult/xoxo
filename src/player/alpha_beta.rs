@@ -8,13 +8,13 @@ where
     my_marker: PlayerMark,
     /// A performance counter. If we prune well, this number is small
     n_leafs_evaluated: usize,
-    heuristic_fn: HeuristicFn<G>,
+    heuristic_fn: HeuristicFn<G::Board>,
     name: String,
     max_depth: usize,
 }
 
 impl<G: Game> ABAi<G> {
-    pub fn new(mark: PlayerMark, heuristic_fn: HeuristicFn<G>, depth: usize) -> Self {
+    pub fn new(mark: PlayerMark, heuristic_fn: HeuristicFn<G::Board>, depth: usize) -> Self {
         ABAi {
             my_marker: mark,
             n_leafs_evaluated: 0,

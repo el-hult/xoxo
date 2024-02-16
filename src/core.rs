@@ -31,7 +31,7 @@ where
 }
 
 
-pub type HeuristicFn<G> = fn(PlayerMark, &<G as Game>::Board) -> f64;
+pub type HeuristicFn<B> = fn(PlayerMark, &B) -> f64;
 
 
 /// All games in this project is about placing PlayerMarker on a board
