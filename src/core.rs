@@ -64,7 +64,7 @@ pub enum GameEndStatus {
     Won(PlayerMark),
 }
 
-pub(crate) fn run_game<B: Board>(mut p1: Box<dyn Player<B>>, mut p2: Box<dyn Player<B>>) -> GameEndStatus{
+pub fn run_game<B: Board>(mut p1: Box<dyn Player<B>>, mut p2: Box<dyn Player<B>>) -> GameEndStatus{
     let mut current_player = PlayerMark::Naught;
     let mut board = B::default();
     while !board.game_is_over() {

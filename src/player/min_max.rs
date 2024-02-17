@@ -115,14 +115,14 @@ mod test {
     #[test]
     fn can_find_winning_move() {
         let b = TTTBoard::from_str("   xx    ");
-        let mut ai = MinMaxAi::<TTTBoard>::new(crate::PlayerMark::Cross, ttt_heuristic, 10);
+        let mut ai = MinMaxAi::<TTTBoard>::new(PlayerMark::Cross, ttt_heuristic, 10);
         let action: TTTAddr = ai.play(&b);
         assert_eq!(action, TTTAddr(6))
     }
     #[test]
     fn can_block_winning_move() {
         let b = TTTBoard::from_str("oo  x    ");
-        let mut ai = MinMaxAi::<TTTBoard>::new(crate::PlayerMark::Cross, ttt_heuristic, 10);
+        let mut ai = MinMaxAi::<TTTBoard>::new(PlayerMark::Cross, ttt_heuristic, 10);
         let action = ai.play(&b);
         assert_eq!(action, TTTAddr(3))
     }

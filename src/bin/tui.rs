@@ -1,21 +1,21 @@
-mod core;
-mod game;
-mod player;
-
 use clap::{Parser, ValueEnum};
-use core::{GameStatus, Player, PlayerMark, GameType};
-use game::connect_four::C4Board;
-use player::alpha_beta::ABAi;
-use player::console::ConsolePlayer;
-use player::min_max::MinMaxAi;
-use player::random::RandomAi;
 use rand::{rngs::StdRng, Rng as _, SeedableRng as _};
 use std::f64::INFINITY;
-
-use crate::core::run_game;
-use crate::game::tictactoe::TTTBoard;
-use crate::game::ultimate_ttt::{self, UTTTBoard};
-use crate::player::mcts::{get_c, MctsAi};
+use xoxo::{
+    core::{run_game, GameStatus, GameType, Player, PlayerMark},
+    game::{
+        connect_four::C4Board,
+        tictactoe::TTTBoard,
+        ultimate_ttt::{self, UTTTBoard},
+    },
+    player::{
+        alpha_beta::ABAi,
+        console::ConsolePlayer,
+        mcts::{get_c, MctsAi},
+        min_max::MinMaxAi,
+        random::RandomAi,
+    },
+};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 enum PlayerType {

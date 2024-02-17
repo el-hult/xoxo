@@ -159,7 +159,7 @@ impl UTTTBoard {
             .count()
     }
 
-    pub(crate) fn get_board(&self) -> &[[[[Option<PlayerMark>; 3]; 3]; 3]; 3] {
+    pub fn get_board(&self) -> &[[[[Option<PlayerMark>; 3]; 3]; 3]; 3] {
         &self.board
     }
 }

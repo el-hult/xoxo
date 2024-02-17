@@ -15,7 +15,7 @@ use std::{collections::HashMap, fmt::Debug};
 
 use crate::core::{GameType,Board, GameStatus, Player};
 
-pub(crate) trait Mdp {
+pub trait Mdp {
     type Action: Clone + Debug + PartialEq + Eq + Hash + Ord;
     type State: Sized + Debug + Clone + PartialEq + Eq + Hash;
     const DISCOUNT_FACTOR: f64; // 1= no discount, 0=only immediate reward
@@ -208,7 +208,7 @@ mod test {
     }
 }
 
-pub(crate) struct MctsAi<T: Mdp> {
+pub struct MctsAi<T: Mdp> {
     qmap: QMap<T>,
     state_visit_counter: HashMap<T::State, f64>,
     rng: StdRng,
@@ -253,7 +253,7 @@ where
     }
 }
 
-pub(crate) fn get_c(game: GameType) -> f64 {
+pub fn get_c(game: GameType) -> f64 {
     match game {
         GameType::Ttt => 1.0,
         GameType::Uttt => 0.75,
