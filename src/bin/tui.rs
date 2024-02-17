@@ -1,8 +1,9 @@
 use clap::{Parser, ValueEnum};
 use rand::{rngs::StdRng, Rng as _, SeedableRng as _};
+use std::fmt::Debug;
+use std::hash::Hash;
 use xoxo::{
-    core::{run_game_verbose, GameType, Player, PlayerMark},
-    game::{connect_four::C4Board, tictactoe::TTTBoard, ultimate_ttt::UTTTBoard},
+    core::{run_game_verbose, Board, GameType, HeuristicFn, Player, PlayerMark},
     player::{
         alpha_beta::ABAi,
         c4_heuristic,
@@ -60,6 +61,29 @@ struct Args {
     c: Option<f64>,
 }
 
+fn make_player<T>(
+    player_type: PlayerType,
+    marker: PlayerMark,
+    rng: &mut StdRng,
+    mm_depth: usize,
+    ab_depth: usize,
+    c: f64,
+    heuristic: HeuristicFn<T>,
+) -> Box<dyn Player<T>>
+where
+    T: Board + Clone + Hash + Eq + Debug + 'static,
+    ConsolePlayer: Player<T>,
+    <T as Board>::Coordinate: Ord + Hash + Debug,
+{
+    match player_type {
+        PlayerType::Console => Box::new(ConsolePlayer::new(marker)),
+        PlayerType::Random => Box::new(RandomAi::new(rng.gen())),
+        PlayerType::Minimax => Box::new(MinMaxAi::<T>::new(marker, heuristic, mm_depth)),
+        PlayerType::AlphaBeta => Box::new(ABAi::<T>::new(marker, heuristic, ab_depth)),
+        PlayerType::Mcts => Box::new(MctsAi::<T>::new(rng.gen(), c)),
+    }
+}
+
 fn main() {
     let args = Args::parse();
     let seed = args.seed.unwrap_or(StdRng::from_entropy().gen());
@@ -71,103 +95,67 @@ fn main() {
     };
     match args.game {
         GameType::Ttt => {
-            let p1: Box<dyn Player<TTTBoard>> = match args.p1 {
-                PlayerType::Console => Box::new(ConsolePlayer::new(PlayerMark::Naught)),
-                PlayerType::Random => Box::new(RandomAi::new(rng.gen())),
-                PlayerType::Minimax => Box::new(MinMaxAi::<TTTBoard>::new(
-                    PlayerMark::Naught,
-                    ttt_heuristic,
-                    args.mm_depth,
-                )),
-                PlayerType::AlphaBeta => Box::new(ABAi::<TTTBoard>::new(
-                    PlayerMark::Naught,
-                    ttt_heuristic,
-                    args.ab_depth,
-                )),
-                PlayerType::Mcts => Box::new(MctsAi::<TTTBoard>::new(rng.gen(), c)),
-            };
-            let p2: Box<dyn Player<TTTBoard>> = match args.p2 {
-                PlayerType::Console => Box::new(ConsolePlayer::new(PlayerMark::Cross)),
-                PlayerType::Random => Box::new(RandomAi::new(rng.gen())),
-                PlayerType::Minimax => Box::new(MinMaxAi::<TTTBoard>::new(
-                    PlayerMark::Cross,
-                    ttt_heuristic,
-                    args.mm_depth,
-                )),
-                PlayerType::AlphaBeta => Box::new(ABAi::<TTTBoard>::new(
-                    PlayerMark::Cross,
-                    ttt_heuristic,
-                    args.ab_depth,
-                )),
-                PlayerType::Mcts => Box::new(MctsAi::<TTTBoard>::new(rng.gen(), c)),
-            };
-            run_game_verbose::<TTTBoard>(p1, p2)
+            let p1 = make_player(
+                args.p1,
+                PlayerMark::Naught,
+                &mut rng,
+                args.mm_depth,
+                args.ab_depth,
+                c,
+                ttt_heuristic,
+            );
+            let p2 = make_player(
+                args.p2,
+                PlayerMark::Cross,
+                &mut rng,
+                args.mm_depth,
+                args.ab_depth,
+                c,
+                ttt_heuristic,
+            );
+            run_game_verbose(p1, p2)
         }
         GameType::Uttt => {
-            let p1: Box<dyn Player<UTTTBoard>> = match args.p1 {
-                PlayerType::Console => Box::new(ConsolePlayer::new(PlayerMark::Naught)),
-                PlayerType::Random => Box::new(RandomAi::new(rng.gen())),
-                PlayerType::Minimax => Box::new(MinMaxAi::<UTTTBoard>::new(
-                    PlayerMark::Naught,
-                    uttt_heuristic,
-                    args.mm_depth,
-                )),
-                PlayerType::AlphaBeta => Box::new(ABAi::<UTTTBoard>::new(
-                    PlayerMark::Naught,
-                    uttt_heuristic,
-                    args.ab_depth,
-                )),
-                PlayerType::Mcts => Box::new(MctsAi::<UTTTBoard>::new(rng.gen(), c)),
-            };
-            let p2: Box<dyn Player<UTTTBoard>> = match args.p2 {
-                PlayerType::Console => Box::new(ConsolePlayer::new(PlayerMark::Cross)),
-                PlayerType::Random => Box::new(RandomAi::new(rng.gen())),
-                PlayerType::Minimax => Box::new(MinMaxAi::<UTTTBoard>::new(
-                    PlayerMark::Cross,
-                    uttt_heuristic,
-                    args.mm_depth,
-                )),
-                PlayerType::AlphaBeta => Box::new(ABAi::<UTTTBoard>::new(
-                    PlayerMark::Cross,
-                    uttt_heuristic,
-                    args.ab_depth,
-                )),
-                PlayerType::Mcts => Box::new(MctsAi::<UTTTBoard>::new(rng.gen(), c)),
-            };
-            run_game_verbose::<UTTTBoard>(p1, p2)
+            let p1 = make_player(
+                args.p1,
+                PlayerMark::Naught,
+                &mut rng,
+                args.mm_depth,
+                args.ab_depth,
+                c,
+                uttt_heuristic,
+            );
+            let p2 = make_player(
+                args.p2,
+                PlayerMark::Cross,
+                &mut rng,
+                args.mm_depth,
+                args.ab_depth,
+                c,
+                uttt_heuristic,
+            );
+            run_game_verbose(p1, p2)
         }
         GameType::C4 => {
-            let p1: Box<dyn Player<C4Board>> = match args.p1 {
-                PlayerType::Console => Box::new(ConsolePlayer::new(PlayerMark::Naught)),
-                PlayerType::Random => Box::new(RandomAi::new(rng.gen())),
-                PlayerType::Minimax => Box::new(MinMaxAi::<C4Board>::new(
-                    PlayerMark::Naught,
-                    c4_heuristic,
-                    args.mm_depth,
-                )),
-                PlayerType::AlphaBeta => Box::new(ABAi::<C4Board>::new(
-                    PlayerMark::Naught,
-                    c4_heuristic,
-                    args.ab_depth,
-                )),
-                PlayerType::Mcts => Box::new(MctsAi::<C4Board>::new(rng.gen(), c)),
-            };
-            let p2: Box<dyn Player<C4Board>> = match args.p2 {
-                PlayerType::Console => Box::new(ConsolePlayer::new(PlayerMark::Cross)),
-                PlayerType::Random => Box::new(RandomAi::new(rng.gen())),
-                PlayerType::Minimax => Box::new(MinMaxAi::<C4Board>::new(
-                    PlayerMark::Cross,
-                    c4_heuristic,
-                    args.mm_depth,
-                )),
-                PlayerType::AlphaBeta => Box::new(ABAi::<C4Board>::new(
-                    PlayerMark::Cross,
-                    c4_heuristic,
-                    args.ab_depth,
-                )),
-                PlayerType::Mcts => Box::new(MctsAi::<C4Board>::new(rng.gen(), c)),
-            };
-            run_game_verbose::<C4Board>(p1, p2)
+            let p1 = make_player(
+                args.p1,
+                PlayerMark::Naught,
+                &mut rng,
+                args.mm_depth,
+                args.ab_depth,
+                c,
+                c4_heuristic,
+            );
+            let p2 = make_player(
+                args.p2,
+                PlayerMark::Cross,
+                &mut rng,
+                args.mm_depth,
+                args.ab_depth,
+                c,
+                c4_heuristic,
+            );
+            run_game_verbose(p1, p2)
         }
     };
 }
