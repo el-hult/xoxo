@@ -6,7 +6,6 @@ pub struct MinMaxAi<B> {
     n_leafs_evaluated: usize,
     heuristic_fn: HeuristicFn<B>,
     max_depth: usize,
-    name: String,
 }
 
 impl<B: Board + Clone> MinMaxAi<B> {
@@ -16,10 +15,6 @@ impl<B: Board + Clone> MinMaxAi<B> {
             n_leafs_evaluated: 0,
             heuristic_fn,
             max_depth: depth,
-            name: match mark {
-                PlayerMark::Cross => "minimax X".into(),
-                PlayerMark::Naught => "minimax O".into(),
-            },
         }
     }
 
@@ -37,7 +32,6 @@ impl<B: Board + Clone> MinMaxAi<B> {
     fn minimax(&mut self, node: &B, depth: usize, my_move: bool) -> f64 {
         if depth == 0 || node.game_is_over() {
             let s = self.heuristic(node);
-            // println!("Leaf node board\n {node} gets score {s}, at {depth}. Compare with {a} and {b}");
             return s;
         }
         let moves = node.valid_moves();
@@ -85,10 +79,6 @@ impl<B: Board + Clone> Player<B> for MinMaxAi<B> {
             .max_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal))
             .map(|(_, &q)| q)
             .expect("At least one element");
-        println!(
-            "{} heuristic evaluations computed by {}",
-            self.n_leafs_evaluated, self.name
-        );
         res
     }
 }

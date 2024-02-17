@@ -5,14 +5,15 @@
 use clap::{Parser, Subcommand, ValueEnum};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use xoxo::player::c4_heuristic;
 use std::io::Seek;
 use std::path::PathBuf;
-use xoxo::core::PlayerMark;
+use xoxo::core::{Player, PlayerMark};
 
 use xoxo::{
     core::{run_game_silent, GameEndStatus, GameType},
     game::connect_four::C4Board,
-    player::random::RandomAi,
+    player::{RandomAi,MinMaxAi},
 };
 
 #[derive(Parser, Debug)]
@@ -51,12 +52,14 @@ enum Commands {
 #[derive(Debug, Clone, Copy, ValueEnum, Serialize, Deserialize)]
 enum PlayerSpec {
     Random,
+    Minimax3,
 }
 impl PlayerSpec {
-    const VARIANTS: usize = 1;
+    const VARIANTS: usize = 2;
     fn variant_number(&self) -> usize {
         match self {
             PlayerSpec::Random => 0,
+            PlayerSpec::Minimax3 => 1,
         }
     }
 }
@@ -125,8 +128,8 @@ fn print_out_report(outfile: &PathBuf, game_to_report: GameType) -> Result<(), s
             }
         }
     }
-    println!("Wins: {:?}", n_wins);
-    println!("Games: {:?}", n_games);
+    println!("Wins:\n {:?}", n_wins);
+    println!("Games:\n {:?}", n_games);
     Ok(())
 }
 
@@ -161,11 +164,13 @@ fn record_result(
 
 fn run_c4(player1: PlayerSpec, player2: PlayerSpec) -> GameEndStatus {
     let mut rng = rand::thread_rng();
-    let p1 = match player1 {
+    let p1: Box<dyn Player<C4Board>> = match player1 {
         PlayerSpec::Random => Box::new(RandomAi::new(rng.gen())),
+        PlayerSpec::Minimax3 => Box::new(MinMaxAi::new(PlayerMark::Naught, c4_heuristic,  3)),
     };
-    let p2 = match player2 {
+    let p2: Box<dyn Player<C4Board>> = match player2 {
         PlayerSpec::Random => Box::new(RandomAi::new(rng.gen())),
+        PlayerSpec::Minimax3 => Box::new(MinMaxAi::new(PlayerMark::Cross, c4_heuristic,  3)),
     };
     run_game_silent::<C4Board>(p1, p2)
 }
