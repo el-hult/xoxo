@@ -20,8 +20,7 @@ impl std::fmt::Display for TTTAddr {
 /// The second member is the victory counters. +1 for naughts. -1 for crosses.
 /// Someone wins on a +3 or -3.
 /// It holds 8 numbers: 3 rows (top to bottom), 3 columns (left to rifht) and two diagonals (first the one that points to southeast, and the the one to northeast)
-#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, PartialOrd, Ord)]
-#[derive(Default)]
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, PartialOrd, Ord, Default)]
 pub struct TTTBoard([Option<PlayerMark>; 9], [i32; 8]);
 
 impl Board for TTTBoard {
@@ -118,8 +117,6 @@ impl TTTBoard {
         self.0.iter().filter(|&q| q.is_some()).count()
     }
 }
-
-
 
 impl std::fmt::Display for TTTBoard {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

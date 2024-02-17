@@ -1,7 +1,13 @@
 use std::{io::BufRead, ops::Sub};
 
-use crate::{core::{Player, PlayerMark}, game::{connect_four::{C4Board}, tictactoe::{self, TTTBoard}, ultimate_ttt::{self}}};
-
+use crate::{
+    core::{Player, PlayerMark},
+    game::{
+        connect_four::C4Board,
+        tictactoe::{self, TTTBoard},
+        ultimate_ttt::{self},
+    },
+};
 
 pub struct ConsolePlayer {
     pub name: String,

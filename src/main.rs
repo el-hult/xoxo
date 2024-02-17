@@ -2,14 +2,14 @@ mod core;
 mod game;
 mod player;
 
-use player::alpha_beta::ABAi;
 use clap::{Parser, ValueEnum};
-use player::console::ConsolePlayer;
 use core::{GameStatus, Player, PlayerMark};
 use game::connect_four::C4Board;
+use player::alpha_beta::ABAi;
+use player::console::ConsolePlayer;
 use player::min_max::MinMaxAi;
-use rand::{rngs::StdRng, Rng as _, SeedableRng as _};
 use player::random::RandomAi;
+use rand::{rngs::StdRng, Rng as _, SeedableRng as _};
 use std::f64::INFINITY;
 
 use crate::core::run_game;
@@ -187,9 +187,11 @@ fn main() {
                     ttt_heuristic,
                     args.mm_depth,
                 )),
-                PlayerType::AlphaBeta => {
-                    Box::new(ABAi::<TTTBoard>::new(PlayerMark::Naught, ttt_heuristic, args.ab_depth))
-                }
+                PlayerType::AlphaBeta => Box::new(ABAi::<TTTBoard>::new(
+                    PlayerMark::Naught,
+                    ttt_heuristic,
+                    args.ab_depth,
+                )),
                 PlayerType::Mcts => Box::new(MctsAi::<TTTBoard>::new(rng.gen(), c)),
             };
             let p2: Box<dyn Player<TTTBoard>> = match args.p2 {
@@ -200,12 +202,14 @@ fn main() {
                     ttt_heuristic,
                     args.mm_depth,
                 )),
-                PlayerType::AlphaBeta => {
-                    Box::new(ABAi::<TTTBoard>::new(PlayerMark::Cross, ttt_heuristic, args.ab_depth))
-                }
+                PlayerType::AlphaBeta => Box::new(ABAi::<TTTBoard>::new(
+                    PlayerMark::Cross,
+                    ttt_heuristic,
+                    args.ab_depth,
+                )),
                 PlayerType::Mcts => Box::new(MctsAi::<TTTBoard>::new(rng.gen(), c)),
             };
-            run_game::<TTTBoard>(p1,p2)
+            run_game::<TTTBoard>(p1, p2)
         }
         GameType::Uttt => {
             let p1: Box<dyn Player<ultimate_ttt::Board>> = match args.p1 {
@@ -216,9 +220,11 @@ fn main() {
                     uttt_heuristic,
                     args.mm_depth,
                 )),
-                PlayerType::AlphaBeta => {
-                    Box::new(ABAi::<ultimate_ttt::Board>::new(PlayerMark::Naught, uttt_heuristic, args.ab_depth))
-                }
+                PlayerType::AlphaBeta => Box::new(ABAi::<ultimate_ttt::Board>::new(
+                    PlayerMark::Naught,
+                    uttt_heuristic,
+                    args.ab_depth,
+                )),
                 PlayerType::Mcts => Box::new(MctsAi::<ultimate_ttt::Board>::new(rng.gen(), c)),
             };
             let p2: Box<dyn Player<ultimate_ttt::Board>> = match args.p2 {
@@ -229,12 +235,14 @@ fn main() {
                     uttt_heuristic,
                     args.mm_depth,
                 )),
-                PlayerType::AlphaBeta => {
-                    Box::new(ABAi::<ultimate_ttt::Board>::new(PlayerMark::Cross, uttt_heuristic, args.ab_depth))
-                }
+                PlayerType::AlphaBeta => Box::new(ABAi::<ultimate_ttt::Board>::new(
+                    PlayerMark::Cross,
+                    uttt_heuristic,
+                    args.ab_depth,
+                )),
                 PlayerType::Mcts => Box::new(MctsAi::<ultimate_ttt::Board>::new(rng.gen(), c)),
             };
-            run_game::<ultimate_ttt::Board>(p1,p2)
+            run_game::<ultimate_ttt::Board>(p1, p2)
         }
         GameType::C4 => {
             let p1: Box<dyn Player<C4Board>> = match args.p1 {
@@ -245,9 +253,11 @@ fn main() {
                     c4_heuristic,
                     args.mm_depth,
                 )),
-                PlayerType::AlphaBeta => {
-                    Box::new(ABAi::<C4Board>::new(PlayerMark::Naught, c4_heuristic, args.ab_depth))
-                }
+                PlayerType::AlphaBeta => Box::new(ABAi::<C4Board>::new(
+                    PlayerMark::Naught,
+                    c4_heuristic,
+                    args.ab_depth,
+                )),
                 PlayerType::Mcts => Box::new(MctsAi::<C4Board>::new(rng.gen(), c)),
             };
             let p2: Box<dyn Player<C4Board>> = match args.p2 {
@@ -258,12 +268,14 @@ fn main() {
                     c4_heuristic,
                     args.mm_depth,
                 )),
-                PlayerType::AlphaBeta => {
-                    Box::new(ABAi::<C4Board>::new(PlayerMark::Cross, c4_heuristic, args.ab_depth))
-                }
+                PlayerType::AlphaBeta => Box::new(ABAi::<C4Board>::new(
+                    PlayerMark::Cross,
+                    c4_heuristic,
+                    args.ab_depth,
+                )),
                 PlayerType::Mcts => Box::new(MctsAi::<C4Board>::new(rng.gen(), c)),
             };
-            run_game::<C4Board>(p1,p2)
+            run_game::<C4Board>(p1, p2)
         }
     };
 }

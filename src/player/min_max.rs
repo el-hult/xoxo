@@ -1,7 +1,6 @@
-use crate::core::{Board, Player, PlayerMark, HeuristicFn};
+use crate::core::{Board, HeuristicFn, Player, PlayerMark};
 
-pub struct MinMaxAi<B>
-{
+pub struct MinMaxAi<B> {
     my_marker: PlayerMark,
     /// A performance counter. If we prune well, this number is small
     n_leafs_evaluated: usize,
@@ -10,8 +9,7 @@ pub struct MinMaxAi<B>
     name: String,
 }
 
-impl<B:Board+Clone> MinMaxAi<B>
-{
+impl<B: Board + Clone> MinMaxAi<B> {
     pub fn new(mark: PlayerMark, heuristic_fn: HeuristicFn<B>, depth: usize) -> Self {
         Self {
             my_marker: mark,
@@ -73,8 +71,7 @@ impl<B:Board+Clone> MinMaxAi<B>
     }
 }
 
-impl<B:Board + Clone> Player<B> for MinMaxAi<B>
-{
+impl<B: Board + Clone> Player<B> for MinMaxAi<B> {
     fn play(&mut self, b: &B) -> B::Coordinate {
         let res = b
             .valid_moves()
@@ -98,10 +95,11 @@ impl<B:Board + Clone> Player<B> for MinMaxAi<B>
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        game::tictactoe::{TTTAddr, TTTBoard}, ttt_heuristic, Player
-    };
     use super::*;
+    use crate::{
+        game::tictactoe::{TTTAddr, TTTBoard},
+        ttt_heuristic, Player,
+    };
 
     #[test]
     fn can_find_winning_move() {

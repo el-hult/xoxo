@@ -1,8 +1,4 @@
-
-
-
 use rand::{rngs::StdRng, SeedableRng};
-
 
 use crate::core::{Board, Player, PlayerMark};
 pub struct RandomAi<R> {
@@ -32,8 +28,8 @@ impl RandomAi<rand::prelude::StdRng> {
             },
             rng: match seed {
                 None => StdRng::from_entropy(),
-                Some(seed) => StdRng::seed_from_u64(seed)
-            }
+                Some(seed) => StdRng::seed_from_u64(seed),
+            },
         }
     }
 }

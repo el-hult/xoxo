@@ -1,7 +1,7 @@
 //! Monte Carlo Tree Search -- general implementation
-//! This holds a general implementation of the MCTS algorithm, which is a general algorithm for solving MDPs where the state 
+//! This holds a general implementation of the MCTS algorithm, which is a general algorithm for solving MDPs where the state
 //! evolves in a tree-like structure. It will not work if you can have cycles in the state space.
-//! 
+//!
 //! It also holds a Ai struct, that knows how to play a game using MCTS, assuming the MDP structure of the games is known.
 
 use itertools::Itertools as _;
@@ -9,7 +9,6 @@ use rand::prelude::SliceRandom;
 use rand::rngs::StdRng;
 use rand::seq::IteratorRandom as _;
 use rand::SeedableRng;
-
 
 use std::hash::Hash;
 use std::{collections::HashMap, fmt::Debug};
@@ -71,7 +70,7 @@ pub(crate) type QMap<M> = HashMap<(<M as Mdp>::State, <M as Mdp>::Action), (f64,
 
 pub(crate) fn best_action<M: Mdp>(
     state: &M::State,
-    c: f64, 
+    c: f64,
     qmap: &QMap<M>,
     state_visit_counter: &HashMap<M::State, f64>,
     rng: &mut StdRng,
@@ -166,8 +165,8 @@ mod test {
         let mut qmap = HashMap::new();
         let mut rng = StdRng::from_entropy();
         let c = 0.75;
-        mcts_step::<CountGameMDP>(&root,c, &mut state_visit_counter, &mut qmap, &mut rng);
-        mcts_step::<CountGameMDP>(&root,c, &mut state_visit_counter, &mut qmap, &mut rng);
+        mcts_step::<CountGameMDP>(&root, c, &mut state_visit_counter, &mut qmap, &mut rng);
+        mcts_step::<CountGameMDP>(&root, c, &mut state_visit_counter, &mut qmap, &mut rng);
         // The root state should have been visited twice
         assert!(state_visit_counter.contains_key(&root));
         assert_eq!(state_visit_counter[&root], 2.0);
@@ -191,8 +190,16 @@ mod test {
         let mut qmap = HashMap::new();
         let mut rng = StdRng::from_entropy();
         let c = 0.75;
-        run_train_steps::<CountGameMDP>(&root, c,&mut qmap, &mut state_visit_counter, &mut rng, 1000);
-        let best_move = best_action::<CountGameMDP>(&root, c, &qmap, &state_visit_counter, &mut rng);
+        run_train_steps::<CountGameMDP>(
+            &root,
+            c,
+            &mut qmap,
+            &mut state_visit_counter,
+            &mut rng,
+            1000,
+        );
+        let best_move =
+            best_action::<CountGameMDP>(&root, c, &qmap, &state_visit_counter, &mut rng);
         assert_eq!(
             best_move,
             CountGameAction::Add,
@@ -201,53 +208,67 @@ mod test {
     }
 }
 
-
-pub(crate) struct MctsAi<T:Mdp> {
+pub(crate) struct MctsAi<T: Mdp> {
     qmap: QMap<T>,
     state_visit_counter: HashMap<T::State, f64>,
     rng: StdRng,
-    c: f64
+    c: f64,
 }
 
-impl<T:Mdp> MctsAi<T> {
+impl<T: Mdp> MctsAi<T> {
     /// seed is for the RNG, c is the exploration constant in the UCB1 formula
-    pub fn new(seed: u64, c:f64) -> Self {
+    pub fn new(seed: u64, c: f64) -> Self {
         MctsAi {
             qmap: QMap::<T>::new(),
             state_visit_counter: HashMap::new(),
             rng: StdRng::seed_from_u64(seed),
-            c
-            }
+            c,
         }
     }
+}
 
-impl<T,B> Player<B> for MctsAi<T>
-where 
-    T: Mdp<Action=B::Coordinate,State=B>,
+impl<T, B> Player<B> for MctsAi<T>
+where
+    T: Mdp<Action = B::Coordinate, State = B>,
     B: Board,
 {
     fn play(&mut self, b: &B) -> B::Coordinate {
-        run_train_steps::<T>(b, self.c, &mut self.qmap, &mut self.state_visit_counter, &mut self.rng,10000);
-        let a= best_action::<T>(b, self.c, &self.qmap, &self.state_visit_counter, &mut self.rng);
+        run_train_steps::<T>(
+            b,
+            self.c,
+            &mut self.qmap,
+            &mut self.state_visit_counter,
+            &mut self.rng,
+            10000,
+        );
+        let a = best_action::<T>(
+            b,
+            self.c,
+            &self.qmap,
+            &self.state_visit_counter,
+            &mut self.rng,
+        );
         println!("MCTS AI played {}", a);
         a
     }
 }
 
 pub(crate) fn get_c(game: crate::GameType) -> f64 {
-    match  game {
+    match game {
         crate::GameType::Ttt => 1.0,
         crate::GameType::Uttt => 0.75,
         crate::GameType::C4 => 1.0,
     }
 }
 
-impl<B:Board> Mdp for B
-where B::Coordinate: Ord + Hash + Debug, B: Hash + Eq + Clone + Debug
+impl<B: Board> Mdp for B
+where
+    B::Coordinate: Ord + Hash + Debug,
+    B: Hash + Eq + Clone + Debug,
 {
     type Action = B::Coordinate;
 
-    type State = B ;
+    type State = B;
 
     const DISCOUNT_FACTOR: f64 = -1.0;
 
@@ -255,7 +276,13 @@ where B::Coordinate: Ord + Hash + Debug, B: Hash + Eq + Clone + Debug
         let player_mark = board.current_player();
         board.place_mark(*action, player_mark);
         let reward: f64 = match board.game_status() {
-            GameStatus::Won(mark) => if player_mark == mark { 1.0 } else { -1.0 },
+            GameStatus::Won(mark) => {
+                if player_mark == mark {
+                    1.0
+                } else {
+                    -1.0
+                }
+            }
             _ => 0.0,
         };
         (board, reward)

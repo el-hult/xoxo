@@ -1,8 +1,6 @@
 use crate::core::{Board, HeuristicFn, Player, PlayerMark};
 
-
-pub struct ABAi<B>
-{
+pub struct ABAi<B> {
     my_marker: PlayerMark,
     /// A performance counter. If we prune well, this number is small
     n_leafs_evaluated: usize,
@@ -11,7 +9,7 @@ pub struct ABAi<B>
     max_depth: usize,
 }
 
-impl<B:Board+Clone> ABAi<B> {
+impl<B: Board + Clone> ABAi<B> {
     pub fn new(mark: PlayerMark, heuristic_fn: HeuristicFn<B>, depth: usize) -> Self {
         ABAi {
             my_marker: mark,
@@ -32,14 +30,7 @@ impl<B:Board+Clone> ABAi<B> {
 
     /// compute the score of a node by use of alpha-beta with pruning
     /// Assumes I want to maximize my score, and the opponent makes moves to minimize it
-    fn alphabeta(
-        &mut self,
-        node: &B,
-        depth: usize,
-        a: f64,
-        b: f64,
-        my_move: bool,
-    ) -> f64 {
+    fn alphabeta(&mut self, node: &B, depth: usize, a: f64, b: f64, my_move: bool) -> f64 {
         if depth == 0 || node.game_is_over() {
             let s = self.heuristic(node);
             // println!("Leaf node board\n {node} gets score {s}, at {depth}. Compare with {a} and {b}");
@@ -86,7 +77,7 @@ impl<B:Board+Clone> ABAi<B> {
     }
 }
 
-impl<B:Board+Clone> Player<B> for ABAi<B> {
+impl<B: Board + Clone> Player<B> for ABAi<B> {
     fn play(&mut self, b: &B) -> B::Coordinate {
         let res = b
             .valid_moves()
@@ -113,7 +104,7 @@ impl<B:Board+Clone> Player<B> for ABAi<B> {
 #[cfg(test)]
 mod test {
     use crate::{
-        game::tictactoe::{TTTBoard, TTTAddr},
+        game::tictactoe::{TTTAddr, TTTBoard},
         ttt_heuristic, Player,
     };
 
