@@ -3,6 +3,8 @@
 
 use std::fmt::Display;
 
+use clap::ValueEnum;
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord)]
 pub enum PlayerMark {
     Cross,
@@ -46,7 +48,23 @@ pub enum GameStatus {
     Won(PlayerMark),
 }
 
-pub(crate) fn run_game<B: Board>(mut p1: Box<dyn Player<B>>, mut p2: Box<dyn Player<B>>) {
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+pub enum GameType {
+    /// Normal Tic-Tac-Toe
+    Ttt,
+    /// Ultimate Tic-Tac-Toe
+    Uttt,
+    /// Connect Four
+    C4,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, Ord, PartialOrd)]
+pub enum GameEndStatus {
+    Draw,
+    Won(PlayerMark),
+}
+
+pub(crate) fn run_game<B: Board>(mut p1: Box<dyn Player<B>>, mut p2: Box<dyn Player<B>>) -> GameEndStatus{
     let mut current_player = PlayerMark::Naught;
     let mut board = B::default();
     while !board.game_is_over() {
@@ -62,4 +80,9 @@ pub(crate) fn run_game<B: Board>(mut p1: Box<dyn Player<B>>, mut p2: Box<dyn Pla
         println!("Player {:?} won", p);
     }
     println!("Game over.");
+    match board.game_status() {
+        GameStatus::Draw => GameEndStatus::Draw,
+        GameStatus::Won(p) => GameEndStatus::Won(p),
+        GameStatus::Undecided => unreachable!(),
+    }
 }

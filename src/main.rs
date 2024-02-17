@@ -3,7 +3,7 @@ mod game;
 mod player;
 
 use clap::{Parser, ValueEnum};
-use core::{GameStatus, Player, PlayerMark};
+use core::{GameStatus, Player, PlayerMark, GameType};
 use game::connect_four::C4Board;
 use player::alpha_beta::ABAi;
 use player::console::ConsolePlayer;
@@ -24,16 +24,6 @@ enum PlayerType {
     Minimax,
     AlphaBeta,
     Mcts,
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
-enum GameType {
-    /// Normal Tic-Tac-Toe
-    Ttt,
-    /// Ultimate Tic-Tac-Toe
-    Uttt,
-    /// Connect Four
-    C4,
 }
 
 /// A Tic-Tac-Toe game for the command line, with a cool AI integrated!
@@ -73,7 +63,7 @@ struct Args {
     c: Option<f64>,
 }
 
-fn ttt_heuristic(my_marker: PlayerMark, b: &TTTBoard) -> f64 {
+pub fn ttt_heuristic(my_marker: PlayerMark, b: &TTTBoard) -> f64 {
     let n_moves_made: f64 = b.n_moves_made() as f64;
     match b.winner() {
         None => 0.0 + n_moves_made,

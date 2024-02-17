@@ -103,12 +103,23 @@ impl<B: Board + Clone> Player<B> for ABAi<B> {
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        game::tictactoe::{TTTAddr, TTTBoard},
-        ttt_heuristic, Player,
-    };
+    use crate::{core::{Player, PlayerMark}, game::tictactoe::{TTTAddr, TTTBoard}};
 
     use super::ABAi;
+
+    pub fn ttt_heuristic(my_marker: PlayerMark, b: &TTTBoard) -> f64 {
+        let n_moves_made: f64 = b.n_moves_made() as f64;
+        match b.winner() {
+            None => 0.0 + n_moves_made,
+            Some(mark) => {
+                if mark == my_marker {
+                    100.0 - n_moves_made
+                } else {
+                    -100.0 + n_moves_made
+                }
+            }
+        }
+    }
 
     #[test]
     fn can_find_winning_move() {

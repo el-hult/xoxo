@@ -13,7 +13,7 @@ use rand::SeedableRng;
 use std::hash::Hash;
 use std::{collections::HashMap, fmt::Debug};
 
-use crate::core::{Board, GameStatus, Player};
+use crate::core::{GameType,Board, GameStatus, Player};
 
 pub(crate) trait Mdp {
     type Action: Clone + Debug + PartialEq + Eq + Hash + Ord;
@@ -253,11 +253,11 @@ where
     }
 }
 
-pub(crate) fn get_c(game: crate::GameType) -> f64 {
+pub(crate) fn get_c(game: GameType) -> f64 {
     match game {
-        crate::GameType::Ttt => 1.0,
-        crate::GameType::Uttt => 0.75,
-        crate::GameType::C4 => 1.0,
+        GameType::Ttt => 1.0,
+        GameType::Uttt => 0.75,
+        GameType::C4 => 1.0,
     }
 }
 
@@ -289,7 +289,7 @@ where
     }
 
     fn is_terminal(s: &Self::State) -> bool {
-        !matches!(s.game_status(), crate::GameStatus::Undecided)
+        !matches!(s.game_status(), GameStatus::Undecided)
     }
 
     fn allowed_actions(s: &Self::State) -> Vec<Self::Action> {
