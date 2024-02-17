@@ -1,4 +1,4 @@
-use crate::core::{Board, Game, PlayerMark};
+use crate::core::{Board, PlayerMark};
 
 /// Represents a coordinate on the board
 ///
@@ -24,7 +24,8 @@ impl std::fmt::Display for TTTAddr {
 #[derive(Default)]
 pub struct TTTBoard([Option<PlayerMark>; 9], [i32; 8]);
 
-impl Board<TTTAddr> for TTTBoard {
+impl Board for TTTBoard {
+    type Coordinate = TTTAddr;
     fn valid_moves(&self) -> Vec<TTTAddr> {
         self.0
             .iter()
@@ -145,12 +146,4 @@ impl std::fmt::Display for TTTBoard {
         writeln!(f, "|")?;
         writeln!(f, " ------- ")
     }
-}
-
-pub struct TicTacToe {
-}
-
-impl Game for TicTacToe {
-    type Board = TTTBoard;
-    type Coordinate = TTTAddr;
 }

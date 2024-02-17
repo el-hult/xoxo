@@ -1,14 +1,6 @@
 use std::fmt::Display;
 
-use crate::core::{Board, Game, GameStatus, PlayerMark};
-
-pub struct ConnectFour {}
-
-
-impl Game for ConnectFour {
-    type Coordinate = usize;
-    type Board = C4Board;
-}
+use crate::core::{Board, GameStatus, PlayerMark};
 
 /// A board is a 7x6 grid, where you can place a marker in one of the 7 columns
 /// it lands on the top in that column we number the columns left to right and bottom to top
@@ -34,7 +26,8 @@ impl From<C4Board> for [[Option<PlayerMark>; 6]; 7] {
 }
 
 
-impl Board<usize> for C4Board {
+impl Board for C4Board {
+    type Coordinate = usize;
     fn current_player(&self) -> PlayerMark {
         match self.board.iter().flatten().filter(|x| x.is_some()).count() % 2 {
             0 => PlayerMark::Naught,

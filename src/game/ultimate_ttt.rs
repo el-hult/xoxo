@@ -1,8 +1,6 @@
 use std::fmt::Display;
 
-use crate::core::{Board as BoardTrait, Game, GameStatus, PlayerMark};
-
-pub struct UltimateTicTacToe {}
+use crate::core::{Board as BoardTrait, GameStatus, PlayerMark};
 
 #[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
 pub struct Board {
@@ -199,11 +197,6 @@ impl TryFrom<(usize, usize, usize, usize)> for Action {
     type Error = String;
 }
 
-impl Game for UltimateTicTacToe {
-    type Board = Board;
-    type Coordinate = Action;
-}
-
 impl Display for Board {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut board = String::new();
@@ -231,7 +224,7 @@ impl Display for Board {
     }
 }
 
-impl BoardTrait<Action> for Board {
+impl BoardTrait for Board {
     fn valid_moves(&self) -> Vec<Action> {
         let mut moves = vec![];
         for i in 0..3 {
@@ -282,4 +275,6 @@ impl BoardTrait<Action> for Board {
             PlayerMark::Cross
         }
     }
+
+    type Coordinate = Action;
 }

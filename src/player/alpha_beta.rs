@@ -1,20 +1,18 @@
-use crate::core::{Board, Game, HeuristicFn, Player, PlayerMark};
+use crate::core::{Board, HeuristicFn, Player, PlayerMark};
 
 
-pub struct ABAi<G>
-where
-    G: Game,
+pub struct ABAi<B>
 {
     my_marker: PlayerMark,
     /// A performance counter. If we prune well, this number is small
     n_leafs_evaluated: usize,
-    heuristic_fn: HeuristicFn<G::Board>,
+    heuristic_fn: HeuristicFn<B>,
     name: String,
     max_depth: usize,
 }
 
-impl<G: Game> ABAi<G> {
-    pub fn new(mark: PlayerMark, heuristic_fn: HeuristicFn<G::Board>, depth: usize) -> Self {
+impl<B:Board+Clone> ABAi<B> {
+    pub fn new(mark: PlayerMark, heuristic_fn: HeuristicFn<B>, depth: usize) -> Self {
         ABAi {
             my_marker: mark,
             n_leafs_evaluated: 0,
@@ -27,7 +25,7 @@ impl<G: Game> ABAi<G> {
         }
     }
 
-    fn heuristic(&mut self, b: &<G as Game>::Board) -> f64 {
+    fn heuristic(&mut self, b: &B) -> f64 {
         self.n_leafs_evaluated += 1;
         (self.heuristic_fn)(self.my_marker, b)
     }
@@ -36,7 +34,7 @@ impl<G: Game> ABAi<G> {
     /// Assumes I want to maximize my score, and the opponent makes moves to minimize it
     fn alphabeta(
         &mut self,
-        node: &<G as Game>::Board,
+        node: &B,
         depth: usize,
         a: f64,
         b: f64,
@@ -55,7 +53,7 @@ impl<G: Game> ABAi<G> {
             // In this branch, the AI tries to find a move for itself that would maximize the score
             let mut value = -f64::INFINITY;
             let child_nodes = moves.iter().map(|addr| {
-                let mut child = *node;
+                let mut child = (*node).clone();
                 child.place_mark(*addr, my_marker);
                 child
             });
@@ -72,7 +70,7 @@ impl<G: Game> ABAi<G> {
             // In this branch, the AI tries to find a move for the other player that would minimize the score
             let mut value = f64::INFINITY;
             let child_nodes = moves.iter().map(|addr| {
-                let mut child = *node;
+                let mut child = (*node).clone();
                 child.place_mark(*addr, my_marker.other());
                 child
             });
@@ -88,13 +86,13 @@ impl<G: Game> ABAi<G> {
     }
 }
 
-impl<G: Game> Player<G::Board,G::Coordinate> for ABAi<G> {
-    fn play(&mut self, b: &G::Board) -> G::Coordinate {
+impl<B:Board+Clone> Player<B> for ABAi<B> {
+    fn play(&mut self, b: &B) -> B::Coordinate {
         let res = b
             .valid_moves()
             .iter()
             .map(|addr| {
-                let mut b2 = *b;
+                let mut b2 = (*b).clone();
                 b2.place_mark(*addr, self.my_marker);
                 let score =
                     self.alphabeta(&b2, self.max_depth, -f64::INFINITY, f64::INFINITY, false);
@@ -115,8 +113,7 @@ impl<G: Game> Player<G::Board,G::Coordinate> for ABAi<G> {
 #[cfg(test)]
 mod test {
     use crate::{
-        game::tictactoe::TTTAddr,
-        game::tictactoe::{TTTBoard, TicTacToe},
+        game::tictactoe::{TTTBoard, TTTAddr},
         ttt_heuristic, Player,
     };
 
@@ -125,14 +122,14 @@ mod test {
     #[test]
     fn can_find_winning_move() {
         let b = TTTBoard::from_str("   xx    ");
-        let mut ai = ABAi::<TicTacToe>::new(crate::PlayerMark::Cross, ttt_heuristic, 10);
+        let mut ai = ABAi::<TTTBoard>::new(crate::PlayerMark::Cross, ttt_heuristic, 10);
         let action = ai.play(&b);
         assert_eq!(action, TTTAddr(6))
     }
     #[test]
     fn can_block_winning_move() {
         let b = TTTBoard::from_str("oo  x    ");
-        let mut ai = ABAi::<TicTacToe>::new(crate::PlayerMark::Cross, ttt_heuristic, 10);
+        let mut ai = ABAi::<TTTBoard>::new(crate::PlayerMark::Cross, ttt_heuristic, 10);
         let action = ai.play(&b);
         assert_eq!(action, TTTAddr(3))
     }

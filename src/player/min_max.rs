@@ -1,18 +1,18 @@
-use crate::core::{Board, Game, Player, PlayerMark, HeuristicFn};
+use crate::core::{Board, Player, PlayerMark, HeuristicFn};
 
-pub struct MinMaxAi<G:Game>
+pub struct MinMaxAi<B>
 {
     my_marker: PlayerMark,
     /// A performance counter. If we prune well, this number is small
     n_leafs_evaluated: usize,
-    heuristic_fn: HeuristicFn<G::Board>,
+    heuristic_fn: HeuristicFn<B>,
     max_depth: usize,
     name: String,
 }
 
-impl<G:Game> MinMaxAi<G>
+impl<B:Board+Clone> MinMaxAi<B>
 {
-    pub fn new(mark: PlayerMark, heuristic_fn: HeuristicFn<G::Board>, depth: usize) -> Self {
+    pub fn new(mark: PlayerMark, heuristic_fn: HeuristicFn<B>, depth: usize) -> Self {
         Self {
             my_marker: mark,
             n_leafs_evaluated: 0,
@@ -29,14 +29,14 @@ impl<G:Game> MinMaxAi<G>
     /// If we can win, we want to win fast,
     /// If we must lose or tie, we want to lose slowly
     /// It is always good to hold the mid point
-    fn heuristic(&mut self, b: &G::Board) -> f64 {
+    fn heuristic(&mut self, b: &B) -> f64 {
         self.n_leafs_evaluated += 1;
         (self.heuristic_fn)(self.my_marker, b)
     }
 
     /// compute the score of a node by use of minimax
     /// Assumes I want to maximize my score, and the opponent makes moves to minimize it
-    fn minimax(&mut self, node: &G::Board, depth: usize, my_move: bool) -> f64 {
+    fn minimax(&mut self, node: &B, depth: usize, my_move: bool) -> f64 {
         if depth == 0 || node.game_is_over() {
             let s = self.heuristic(node);
             // println!("Leaf node board\n {node} gets score {s}, at {depth}. Compare with {a} and {b}");
@@ -48,7 +48,7 @@ impl<G:Game> MinMaxAi<G>
             // In this branch, the AI tries to find a move for itself that would maximize the score
             let mut value = -f64::INFINITY;
             let child_nodes = moves.iter().map(|addr| {
-                let mut child = *node;
+                let mut child = (*node).clone();
                 child.place_mark(*addr, my_marker);
                 child
             });
@@ -61,7 +61,7 @@ impl<G:Game> MinMaxAi<G>
             // In this branch, the AI tries to find a move for the other player that would minimize the score
             let mut value = f64::INFINITY;
             let child_nodes = moves.iter().map(|addr| {
-                let mut child = *node;
+                let mut child = (*node).clone();
                 child.place_mark(*addr, my_marker.other());
                 child
             });
@@ -73,14 +73,14 @@ impl<G:Game> MinMaxAi<G>
     }
 }
 
-impl<G:Game> Player<G::Board,G::Coordinate> for MinMaxAi<G>
+impl<B:Board + Clone> Player<B> for MinMaxAi<B>
 {
-    fn play(&mut self, b: &G::Board) -> G::Coordinate {
+    fn play(&mut self, b: &B) -> B::Coordinate {
         let res = b
             .valid_moves()
             .iter()
             .map(|addr| {
-                let mut b2 = *b;
+                let mut b2 = (*b).clone();
                 b2.place_mark(*addr, self.my_marker);
                 let score = self.minimax(&b2, self.max_depth, false);
                 (score, addr)
@@ -99,21 +99,21 @@ impl<G:Game> Player<G::Board,G::Coordinate> for MinMaxAi<G>
 #[cfg(test)]
 mod test {
     use crate::{
-        game::tictactoe::{TTTAddr, TTTBoard, TicTacToe}, ttt_heuristic, Player
+        game::tictactoe::{TTTAddr, TTTBoard}, ttt_heuristic, Player
     };
     use super::*;
 
     #[test]
     fn can_find_winning_move() {
         let b = TTTBoard::from_str("   xx    ");
-        let mut ai = MinMaxAi::<TicTacToe>::new(crate::PlayerMark::Cross, ttt_heuristic, 10);
+        let mut ai = MinMaxAi::<TTTBoard>::new(crate::PlayerMark::Cross, ttt_heuristic, 10);
         let action: TTTAddr = ai.play(&b);
         assert_eq!(action, TTTAddr(6))
     }
     #[test]
     fn can_block_winning_move() {
         let b = TTTBoard::from_str("oo  x    ");
-        let mut ai = MinMaxAi::<TicTacToe>::new(crate::PlayerMark::Cross, ttt_heuristic, 10);
+        let mut ai = MinMaxAi::<TTTBoard>::new(crate::PlayerMark::Cross, ttt_heuristic, 10);
         let action = ai.play(&b);
         assert_eq!(action, TTTAddr(3))
     }

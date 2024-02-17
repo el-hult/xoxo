@@ -1,5 +1,5 @@
 
-use std::fmt::Display;
+
 
 use rand::{rngs::StdRng, SeedableRng};
 
@@ -10,13 +10,12 @@ pub struct RandomAi<R> {
     pub name: String,
 }
 
-impl<Rng, B,C> Player<B,C> for RandomAi<Rng>
+impl<Rng, B> Player<B> for RandomAi<Rng>
 where
     Rng: rand::Rng,
-    B: Board<C>,
-    C: Display + Copy
+    B: Board,
 {
-    fn play(&mut self, b: &B) -> C {
+    fn play(&mut self, b: &B) -> B::Coordinate {
         let moves: Vec<_> = b.valid_moves();
         let idx = self.rng.next_u32() as usize % moves.len();
         println!("Random AI `{}` plays {}", self.name, moves[idx]);

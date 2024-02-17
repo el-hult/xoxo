@@ -10,11 +10,11 @@ use rand::rngs::StdRng;
 use rand::seq::IteratorRandom as _;
 use rand::SeedableRng;
 
-use std::fmt::Display;
+
 use std::hash::Hash;
 use std::{collections::HashMap, fmt::Debug};
 
-use crate::core::{Board, Game, GameStatus, Player};
+use crate::core::{Board, GameStatus, Player};
 
 pub(crate) trait Mdp {
     type Action: Clone + Debug + PartialEq + Eq + Hash + Ord;
@@ -221,10 +221,12 @@ impl<T:Mdp> MctsAi<T> {
         }
     }
 
-impl<T,A,B> Player<B,A> for MctsAi<T>
-where T: Mdp<Action=A,State=B>, A: Display, B: Board<A>
+impl<T,B> Player<B> for MctsAi<T>
+where 
+    T: Mdp<Action=B::Coordinate,State=B>,
+    B: Board,
 {
-    fn play(&mut self, b: &B) -> A {
+    fn play(&mut self, b: &B) -> B::Coordinate {
         run_train_steps::<T>(b, self.c, &mut self.qmap, &mut self.state_visit_counter, &mut self.rng,10000);
         let a= best_action::<T>(b, self.c, &self.qmap, &self.state_visit_counter, &mut self.rng);
         println!("MCTS AI played {}", a);
@@ -240,13 +242,12 @@ pub(crate) fn get_c(game: crate::GameType) -> f64 {
     }
 }
 
-impl<G:Game> Mdp for G 
-where G::Coordinate: Hash + Ord + Debug,
- G::Board: Hash + Debug + Eq
+impl<B:Board> Mdp for B
+where B::Coordinate: Ord + Hash + Debug, B: Hash + Eq + Clone + Debug
 {
-    type Action = G::Coordinate;
+    type Action = B::Coordinate;
 
-    type State = G::Board;
+    type State = B ;
 
     const DISCOUNT_FACTOR: f64 = -1.0;
 

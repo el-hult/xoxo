@@ -21,33 +21,23 @@ impl PlayerMark {
 }
 
 /// The Player trait is the struct that represents a player.
-pub trait Player<B,C>
-where
-    B : Board<C>, C:Display
+pub trait Player<B:Board>
 {
     /// The play function is the main mechanic for the AIs
     /// You observe the whole board through a reference, and can do whatever you like, and then you return an action representing where to play
-    fn play(&mut self, b: &B) -> C;
+    fn play(&mut self, b: &B) -> B::Coordinate;
 }
 
 
 pub type HeuristicFn<B> = fn(PlayerMark, &B) -> f64;
 
 
-/// All games in this project is about placing PlayerMarker on a board
-/// The markers are either crosses or naughts, symbolizing the two players
-pub trait Game {
-    /// The coordinate type is the type of the coordinates on the board
-    type Coordinate: Copy + Display;
-    type Board: Board<Self::Coordinate> + Copy + Default;
-}
-
-pub trait Board<Coordinate>: Display 
-where Coordinate: Display
+pub trait Board: Display + Default
 {
+    type Coordinate: Display+Copy ;
     /// The coordinates where you are allowed to place your marker in this turn.
-    fn valid_moves(&self) -> Vec<Coordinate>;
-    fn place_mark(&mut self, a: Coordinate, marker: PlayerMark);
+    fn valid_moves(&self) -> Vec<Self::Coordinate>;
+    fn place_mark(&mut self, a: Self::Coordinate, marker: PlayerMark);
     fn game_status(&self) -> GameStatus;
     fn current_player(&self) -> PlayerMark;
     fn game_is_over(&self) -> bool {
@@ -62,9 +52,9 @@ pub enum GameStatus {
     Won(PlayerMark),
 }
 
-pub(crate) fn run_game<G:Game>(mut p1: Box<dyn Player<G::Board,G::Coordinate>>, mut p2: Box<dyn Player<G::Board,G::Coordinate>>) {
+pub(crate) fn run_game<B:Board>(mut p1: Box<dyn Player<B>>, mut p2: Box<dyn Player<B>>) {
     let mut current_player = PlayerMark::Naught;
-    let mut board = G::Board::default();
+    let mut board = B::default();
     while !board.game_is_over() {
         let action = match current_player {
             PlayerMark::Naught => p1.play(&board),
