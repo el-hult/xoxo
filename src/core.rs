@@ -1,11 +1,12 @@
 //! The core abstractions for this application
 //!
 
+use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 
 use clap::ValueEnum;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum PlayerMark {
     Cross,
     Naught,
@@ -48,7 +49,7 @@ pub enum GameStatus {
     Won(PlayerMark),
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Serialize, Deserialize)]
 pub enum GameType {
     /// Normal Tic-Tac-Toe
     Ttt,
@@ -58,7 +59,8 @@ pub enum GameType {
     C4,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, Ord, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum GameEndStatus {
     Draw,
     Won(PlayerMark),
