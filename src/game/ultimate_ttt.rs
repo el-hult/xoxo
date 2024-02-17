@@ -1,9 +1,9 @@
 use std::fmt::Display;
 
-use crate::core::{Board as BoardTrait, GameStatus, PlayerMark};
+use crate::core::{Board, GameStatus, PlayerMark};
 
 #[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
-pub struct Board {
+pub struct UTTTBoard {
     /// The board is a 3x3 grid of 3x3 grids
     /// board[i][j] is the sub-board at position (i, j)
     /// so board[0][0] is the top left sub-board
@@ -26,7 +26,7 @@ pub struct Board {
     last_action: Option<Action>,
 }
 
-impl Default for Board {
+impl Default for UTTTBoard {
     fn default() -> Self {
         Self {
             sup_board: [[GameStatus::Undecided; 3]; 3],
@@ -37,7 +37,7 @@ impl Default for Board {
     }
 }
 
-impl Board {
+impl UTTTBoard {
     pub fn get_sup_board(&self) -> &[[GameStatus; 3]; 3] {
         &self.sup_board
     }
@@ -197,7 +197,7 @@ impl TryFrom<(usize, usize, usize, usize)> for Action {
     type Error = String;
 }
 
-impl Display for Board {
+impl Display for UTTTBoard {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut board = String::new();
         board.push_str(" --- --- --- \n");
@@ -224,7 +224,7 @@ impl Display for Board {
     }
 }
 
-impl BoardTrait for Board {
+impl Board for UTTTBoard {
     fn valid_moves(&self) -> Vec<Action> {
         let mut moves = vec![];
         for i in 0..3 {

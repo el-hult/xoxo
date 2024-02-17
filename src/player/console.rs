@@ -5,7 +5,7 @@ use crate::{
     game::{
         connect_four::C4Board,
         tictactoe::{self, TTTBoard},
-        ultimate_ttt::{self},
+        ultimate_ttt::{self, UTTTBoard},
     },
 };
 
@@ -45,8 +45,8 @@ impl Player<TTTBoard> for ConsolePlayer {
         tictactoe::TTTAddr(num)
     }
 }
-impl Player<ultimate_ttt::Board> for ConsolePlayer {
-    fn play(&mut self, b: &ultimate_ttt::Board) -> ultimate_ttt::Action {
+impl Player<UTTTBoard> for ConsolePlayer {
+    fn play(&mut self, b: &UTTTBoard) -> ultimate_ttt::Action {
         println!("Time for {} to make a move", self.name);
         print!("{}", b);
         println!("Input four numbers 1-3 to make a move 1 = top left, 3 = bottom right");

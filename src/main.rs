@@ -14,7 +14,7 @@ use std::f64::INFINITY;
 
 use crate::core::run_game;
 use crate::game::tictactoe::TTTBoard;
-use crate::game::ultimate_ttt;
+use crate::game::ultimate_ttt::{self, UTTTBoard};
 use crate::player::mcts::{get_c, MctsAi};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
@@ -92,7 +92,7 @@ fn ttt_heuristic(my_marker: PlayerMark, b: &TTTBoard) -> f64 {
 /// https://www.cs.huji.ac.il/%7Eai/projects/2013/UlitmateTic-Tac-Toe/files/report.pdf
 /// http://smpowell.com/wp-content/uploads/2021/07/Powell_Merrill_FinalPaper.pdf
 ///
-fn uttt_heuristic(my_marker: PlayerMark, b: &ultimate_ttt::Board) -> f64 {
+fn uttt_heuristic(my_marker: PlayerMark, b: &ultimate_ttt::UTTTBoard) -> f64 {
     let n_moves_made: f64 = b.n_moves_made() as f64;
     let n_supboards_win_balance: isize = b
         .get_sup_board()
@@ -212,37 +212,37 @@ fn main() {
             run_game::<TTTBoard>(p1, p2)
         }
         GameType::Uttt => {
-            let p1: Box<dyn Player<ultimate_ttt::Board>> = match args.p1 {
+            let p1: Box<dyn Player<UTTTBoard>> = match args.p1 {
                 PlayerType::Console => Box::new(ConsolePlayer::new(PlayerMark::Naught)),
                 PlayerType::Random => Box::new(RandomAi::new(PlayerMark::Naught, rng.gen())),
-                PlayerType::Minimax => Box::new(MinMaxAi::<ultimate_ttt::Board>::new(
+                PlayerType::Minimax => Box::new(MinMaxAi::<UTTTBoard>::new(
                     PlayerMark::Naught,
                     uttt_heuristic,
                     args.mm_depth,
                 )),
-                PlayerType::AlphaBeta => Box::new(ABAi::<ultimate_ttt::Board>::new(
+                PlayerType::AlphaBeta => Box::new(ABAi::<UTTTBoard>::new(
                     PlayerMark::Naught,
                     uttt_heuristic,
                     args.ab_depth,
                 )),
-                PlayerType::Mcts => Box::new(MctsAi::<ultimate_ttt::Board>::new(rng.gen(), c)),
+                PlayerType::Mcts => Box::new(MctsAi::<UTTTBoard>::new(rng.gen(), c)),
             };
-            let p2: Box<dyn Player<ultimate_ttt::Board>> = match args.p2 {
+            let p2: Box<dyn Player<UTTTBoard>> = match args.p2 {
                 PlayerType::Console => Box::new(ConsolePlayer::new(PlayerMark::Cross)),
                 PlayerType::Random => Box::new(RandomAi::new(PlayerMark::Cross, rng.gen())),
-                PlayerType::Minimax => Box::new(MinMaxAi::<ultimate_ttt::Board>::new(
+                PlayerType::Minimax => Box::new(MinMaxAi::<UTTTBoard>::new(
                     PlayerMark::Cross,
                     uttt_heuristic,
                     args.mm_depth,
                 )),
-                PlayerType::AlphaBeta => Box::new(ABAi::<ultimate_ttt::Board>::new(
+                PlayerType::AlphaBeta => Box::new(ABAi::<UTTTBoard>::new(
                     PlayerMark::Cross,
                     uttt_heuristic,
                     args.ab_depth,
                 )),
-                PlayerType::Mcts => Box::new(MctsAi::<ultimate_ttt::Board>::new(rng.gen(), c)),
+                PlayerType::Mcts => Box::new(MctsAi::<UTTTBoard>::new(rng.gen(), c)),
             };
-            run_game::<ultimate_ttt::Board>(p1, p2)
+            run_game::<UTTTBoard>(p1, p2)
         }
         GameType::C4 => {
             let p1: Box<dyn Player<C4Board>> = match args.p1 {
