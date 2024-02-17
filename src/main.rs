@@ -139,8 +139,6 @@ fn uttt_heuristic(my_marker: PlayerMark, b: &ultimate_ttt::UTTTBoard) -> f64 {
         + 10.0 * midpoint_balance
 }
 
-/// This heuristic is too crude
-/// Therefore, it does not generate a lot of pruning (since many states are considered equally good, few are pruned)
 fn c4_heuristic(my_marker: PlayerMark, b: &C4Board) -> f64 {
     let raw_board: [[Option<PlayerMark>; 6]; 7] = (*b).into();
     let markers_in_col_3 = raw_board[2]

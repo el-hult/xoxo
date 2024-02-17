@@ -215,7 +215,7 @@ impl Display for C4Board {
                     Some(PlayerMark::Naught) => 'o',
                     None => '.',
                 };
-                write!(f, "{}", cell)?;
+                write!(f, "{} ", cell)?;
             }
             writeln!(f)?;
         }
