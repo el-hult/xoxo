@@ -64,7 +64,15 @@ pub enum GameEndStatus {
     Won(PlayerMark),
 }
 
-pub fn run_game<B: Board>(mut p1: Box<dyn Player<B>>, mut p2: Box<dyn Player<B>>) -> GameEndStatus{
+pub fn run_game_silent<B: Board>(p1: Box<dyn Player<B>>, p2: Box<dyn Player<B>>) -> GameEndStatus {
+    run_game(p1, p2, false)
+}
+
+pub fn run_game_verbose<B: Board>(p1: Box<dyn Player<B>>, p2: Box<dyn Player<B>>) -> GameEndStatus {
+    run_game(p1, p2, true)
+}
+
+pub fn run_game<B: Board>(mut p1: Box<dyn Player<B>>, mut p2: Box<dyn Player<B>>, show_output:bool) -> GameEndStatus{
     let mut current_player = PlayerMark::Naught;
     let mut board = B::default();
     while !board.game_is_over() {
@@ -75,11 +83,13 @@ pub fn run_game<B: Board>(mut p1: Box<dyn Player<B>>, mut p2: Box<dyn Player<B>>
         board.place_mark(action, current_player);
         current_player = current_player.other();
     }
-    println!("{}", &board);
+    if show_output{
+        println!("{}", &board);
     if let GameStatus::Won(p) = board.game_status() {
         println!("Player {:?} won", p);
     }
     println!("Game over.");
+}
     match board.game_status() {
         GameStatus::Draw => GameEndStatus::Draw,
         GameStatus::Won(p) => GameEndStatus::Won(p),

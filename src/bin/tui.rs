@@ -2,7 +2,7 @@ use clap::{Parser, ValueEnum};
 use rand::{rngs::StdRng, Rng as _, SeedableRng as _};
 use std::f64::INFINITY;
 use xoxo::{
-    core::{run_game, GameStatus, GameType, Player, PlayerMark},
+    core::{run_game_verbose, GameStatus, GameType, Player, PlayerMark},
     game::{
         connect_four::C4Board,
         tictactoe::TTTBoard,
@@ -169,7 +169,7 @@ fn main() {
         GameType::Ttt => {
             let p1: Box<dyn Player<TTTBoard>> = match args.p1 {
                 PlayerType::Console => Box::new(ConsolePlayer::new(PlayerMark::Naught)),
-                PlayerType::Random => Box::new(RandomAi::new(PlayerMark::Naught, rng.gen())),
+                PlayerType::Random => Box::new(RandomAi::new(rng.gen())),
                 PlayerType::Minimax => Box::new(MinMaxAi::<TTTBoard>::new(
                     PlayerMark::Naught,
                     ttt_heuristic,
@@ -184,7 +184,7 @@ fn main() {
             };
             let p2: Box<dyn Player<TTTBoard>> = match args.p2 {
                 PlayerType::Console => Box::new(ConsolePlayer::new(PlayerMark::Cross)),
-                PlayerType::Random => Box::new(RandomAi::new(PlayerMark::Cross, rng.gen())),
+                PlayerType::Random => Box::new(RandomAi::new(rng.gen())),
                 PlayerType::Minimax => Box::new(MinMaxAi::<TTTBoard>::new(
                     PlayerMark::Cross,
                     ttt_heuristic,
@@ -197,12 +197,12 @@ fn main() {
                 )),
                 PlayerType::Mcts => Box::new(MctsAi::<TTTBoard>::new(rng.gen(), c)),
             };
-            run_game::<TTTBoard>(p1, p2)
+            run_game_verbose::<TTTBoard>(p1, p2)
         }
         GameType::Uttt => {
             let p1: Box<dyn Player<UTTTBoard>> = match args.p1 {
                 PlayerType::Console => Box::new(ConsolePlayer::new(PlayerMark::Naught)),
-                PlayerType::Random => Box::new(RandomAi::new(PlayerMark::Naught, rng.gen())),
+                PlayerType::Random => Box::new(RandomAi::new(rng.gen())),
                 PlayerType::Minimax => Box::new(MinMaxAi::<UTTTBoard>::new(
                     PlayerMark::Naught,
                     uttt_heuristic,
@@ -217,7 +217,7 @@ fn main() {
             };
             let p2: Box<dyn Player<UTTTBoard>> = match args.p2 {
                 PlayerType::Console => Box::new(ConsolePlayer::new(PlayerMark::Cross)),
-                PlayerType::Random => Box::new(RandomAi::new(PlayerMark::Cross, rng.gen())),
+                PlayerType::Random => Box::new(RandomAi::new(rng.gen())),
                 PlayerType::Minimax => Box::new(MinMaxAi::<UTTTBoard>::new(
                     PlayerMark::Cross,
                     uttt_heuristic,
@@ -230,12 +230,12 @@ fn main() {
                 )),
                 PlayerType::Mcts => Box::new(MctsAi::<UTTTBoard>::new(rng.gen(), c)),
             };
-            run_game::<UTTTBoard>(p1, p2)
+            run_game_verbose::<UTTTBoard>(p1, p2)
         }
         GameType::C4 => {
             let p1: Box<dyn Player<C4Board>> = match args.p1 {
                 PlayerType::Console => Box::new(ConsolePlayer::new(PlayerMark::Naught)),
-                PlayerType::Random => Box::new(RandomAi::new(PlayerMark::Naught, rng.gen())),
+                PlayerType::Random => Box::new(RandomAi::new(rng.gen())),
                 PlayerType::Minimax => Box::new(MinMaxAi::<C4Board>::new(
                     PlayerMark::Naught,
                     c4_heuristic,
@@ -250,7 +250,7 @@ fn main() {
             };
             let p2: Box<dyn Player<C4Board>> = match args.p2 {
                 PlayerType::Console => Box::new(ConsolePlayer::new(PlayerMark::Cross)),
-                PlayerType::Random => Box::new(RandomAi::new(PlayerMark::Cross, rng.gen())),
+                PlayerType::Random => Box::new(RandomAi::new(rng.gen())),
                 PlayerType::Minimax => Box::new(MinMaxAi::<C4Board>::new(
                     PlayerMark::Cross,
                     c4_heuristic,
@@ -263,7 +263,7 @@ fn main() {
                 )),
                 PlayerType::Mcts => Box::new(MctsAi::<C4Board>::new(rng.gen(), c)),
             };
-            run_game::<C4Board>(p1, p2)
+            run_game_verbose::<C4Board>(p1, p2)
         }
     };
 }

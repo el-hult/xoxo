@@ -8,7 +8,7 @@ use std::io::Write;
 use std::path::PathBuf;
 
 use xoxo::{
-    core::{run_game, GameEndStatus, GameType, PlayerMark},
+    core::{run_game_silent, GameEndStatus, GameType},
     game::connect_four::C4Board,
     player::random::RandomAi,
 };
@@ -79,10 +79,10 @@ fn run_c4(player1: PlayerSpec, player2: PlayerSpec) -> GameEndStatus {
     );
     let mut rng = rand::thread_rng();
     let p1 = match player1 {
-        PlayerSpec::Random => Box::new(RandomAi::new(PlayerMark::Naught, rng.gen())),
+        PlayerSpec::Random => Box::new(RandomAi::new(rng.gen())),
     };
     let p2 = match player2 {
-        PlayerSpec::Random => Box::new(RandomAi::new(PlayerMark::Cross, rng.gen())),
+        PlayerSpec::Random => Box::new(RandomAi::new(rng.gen())),
     };
-    run_game::<C4Board>(p1, p2)
+    run_game_silent::<C4Board>(p1, p2)
 }
