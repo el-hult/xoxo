@@ -1,4 +1,4 @@
-use crate::core::{Board, HeuristicFn, Player, PlayerMark};
+use crate::core::{BlitzPlayer, Board, HeuristicFn, Player, PlayerMark};
 
 pub struct MinMaxAi<B> {
     my_marker: PlayerMark,
@@ -62,6 +62,12 @@ impl<B: Board + Clone> MinMaxAi<B> {
             }
             value
         }
+    }
+}
+
+impl<B: Board+Clone> BlitzPlayer<B> for MinMaxAi<B>{
+    fn blitz(&mut self, b: &B, _time_remaining: std::time::Duration) -> <B as Board>::Coordinate {
+        self.play(b)
     }
 }
 

@@ -1,11 +1,10 @@
-use crate::core::{Board, HeuristicFn, Player, PlayerMark};
+use crate::core::{BlitzPlayer, Board, HeuristicFn, Player, PlayerMark};
 
 pub struct ABAi<B> {
     my_marker: PlayerMark,
     /// A performance counter. If we prune well, this number is small
     n_leafs_evaluated: usize,
     heuristic_fn: HeuristicFn<B>,
-    name: String,
     max_depth: usize,
 }
 
@@ -15,10 +14,6 @@ impl<B: Board + Clone> ABAi<B> {
             my_marker: mark,
             n_leafs_evaluated: 0,
             heuristic_fn,
-            name: match mark {
-                PlayerMark::Cross => "alphabeta X".into(),
-                PlayerMark::Naught => "alphabeta O".into(),
-            },
             max_depth: depth,
         }
     }
@@ -77,6 +72,13 @@ impl<B: Board + Clone> ABAi<B> {
     }
 }
 
+impl<B: Board + Clone> BlitzPlayer<B> for ABAi<B> {
+    fn blitz(&mut self, b: &B, _time_remaining: std::time::Duration) -> <B as Board>::Coordinate {
+        self.play(b)
+    }
+}
+
+
 impl<B: Board + Clone> Player<B> for ABAi<B> {
     fn play(&mut self, b: &B) -> B::Coordinate {
         let res = b
@@ -93,10 +95,6 @@ impl<B: Board + Clone> Player<B> for ABAi<B> {
             .max_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal))
             .map(|(_, &q)| q)
             .expect("At least one element");
-        println!(
-            "{} heuristic evaluations computed by {}",
-            self.n_leafs_evaluated, self.name
-        );
         res
     }
 }

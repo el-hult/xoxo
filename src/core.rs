@@ -28,6 +28,14 @@ pub trait Player<B: Board> {
     fn play(&mut self, b: &B) -> B::Coordinate;
 }
 
+/// The BlitzPlayer trait is a trait for players that are able to blitz the game, i.e. play games with time limits.
+/// The time_remaining parameter is the time left for the player to make all remaining moves.
+/// Just like in chess, the player loses if they run out of time.
+/// It is up to the player to decide how to budget their time over the course of the game.
+pub trait BlitzPlayer<B: Board> {
+    fn blitz(&mut self, b: &B, time_remaining: std::time::Duration) -> B::Coordinate;
+}
+
 pub type HeuristicFn<B> = fn(PlayerMark, &B) -> f64;
 
 pub trait Board: Display + Default {
@@ -63,18 +71,11 @@ pub enum GameType {
 #[serde(untagged)]
 pub enum GameEndStatus {
     Draw,
+    /// Some player won byt the normal rules of the game
     Won(PlayerMark),
 }
 
-pub fn run_game_silent<B: Board>(p1: Box<dyn Player<B>>, p2: Box<dyn Player<B>>) -> GameEndStatus {
-    run_game(p1, p2, false)
-}
-
-pub fn run_game_verbose<B: Board>(p1: Box<dyn Player<B>>, p2: Box<dyn Player<B>>) -> GameEndStatus {
-    run_game(p1, p2, true)
-}
-
-pub fn run_game<B: Board>(mut p1: Box<dyn Player<B>>, mut p2: Box<dyn Player<B>>, show_output:bool) -> GameEndStatus{
+pub fn run_game<B: Board>(mut p1: Box<dyn Player<B>>, mut p2: Box<dyn Player<B>>) -> GameEndStatus{
     let mut current_player = PlayerMark::Naught;
     let mut board = B::default();
     while !board.game_is_over() {
@@ -85,13 +86,12 @@ pub fn run_game<B: Board>(mut p1: Box<dyn Player<B>>, mut p2: Box<dyn Player<B>>
         board.place_mark(action, current_player);
         current_player = current_player.other();
     }
-    if show_output{
-        println!("{}", &board);
+    println!("{}", &board);
     if let GameStatus::Won(p) = board.game_status() {
         println!("Player {:?} won", p);
     }
     println!("Game over.");
-}
+
     match board.game_status() {
         GameStatus::Draw => GameEndStatus::Draw,
         GameStatus::Won(p) => GameEndStatus::Won(p),

@@ -3,7 +3,7 @@ use rand::{rngs::StdRng, Rng as _, SeedableRng as _};
 use std::fmt::Debug;
 use std::hash::Hash;
 use xoxo::{
-    core::{run_game_verbose, Board, GameType, HeuristicFn, Player, PlayerMark},
+    core::{run_game, Board, GameType, HeuristicFn, Player, PlayerMark},
     player::{
         alpha_beta::ABAi,
         c4_heuristic,
@@ -113,7 +113,7 @@ fn main() {
                 c,
                 ttt_heuristic,
             );
-            run_game_verbose(p1, p2)
+            run_game(p1, p2)
         }
         GameType::Uttt => {
             let p1 = make_player(
@@ -134,7 +134,7 @@ fn main() {
                 c,
                 uttt_heuristic,
             );
-            run_game_verbose(p1, p2)
+            run_game(p1, p2)
         }
         GameType::C4 => {
             let p1 = make_player(
@@ -155,7 +155,7 @@ fn main() {
                 c,
                 c4_heuristic,
             );
-            run_game_verbose(p1, p2)
+            run_game(p1, p2)
         }
     };
 }

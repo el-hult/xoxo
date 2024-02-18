@@ -3,15 +3,17 @@
 //!
 
 use clap::{Parser, Subcommand, ValueEnum};
+use rand::rngs::ThreadRng;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use xoxo::player::c4_heuristic;
+use xoxo::player::{c4_heuristic, ABAi};
 use std::io::Seek;
 use std::path::PathBuf;
-use xoxo::core::{Player, PlayerMark};
+use std::time::Duration;
+use xoxo::core::{BlitzPlayer, Board, GameStatus, PlayerMark};
 
 use xoxo::{
-    core::{run_game_silent, GameEndStatus, GameType},
+    core::{GameEndStatus, GameType},
     game::connect_four::C4Board,
     player::{RandomAi,MinMaxAi},
 };
@@ -53,13 +55,15 @@ enum Commands {
 enum PlayerSpec {
     Random,
     Minimax3,
+    AB5,
 }
 impl PlayerSpec {
-    const VARIANTS: usize = 2;
+    const VARIANTS: usize = 3;
     fn variant_number(&self) -> usize {
         match self {
             PlayerSpec::Random => 0,
             PlayerSpec::Minimax3 => 1,
+            PlayerSpec::AB5 => 2,
         }
     }
 }
@@ -73,7 +77,9 @@ struct GameRecord {
     played_at: chrono::DateTime<chrono::Local>,
 }
 
-fn main() -> Result<(), std::io::Error> {
+
+
+fn main() -> anyhow::Result<()> {
     let args = Cli::parse();
     match args.command {
         Commands::Run {
@@ -90,7 +96,7 @@ fn main() -> Result<(), std::io::Error> {
     }
 }
 
-fn print_out_report(outfile: &PathBuf, game_to_report: GameType) -> Result<(), std::io::Error> {
+fn print_out_report(outfile: &PathBuf, game_to_report: GameType) -> anyhow::Result<()> {
     let mut n_wins = vec![vec![0.0; PlayerSpec::VARIANTS]; PlayerSpec::VARIANTS];
     let mut n_games = vec![vec![0.0; PlayerSpec::VARIANTS]; PlayerSpec::VARIANTS];
 
@@ -139,7 +145,7 @@ fn record_result(
     player1: PlayerSpec,
     player2: PlayerSpec,
     result: GameEndStatus,
-) -> Result<(), std::io::Error> {
+) -> anyhow::Result<()> {
     let mut file = std::fs::OpenOptions::new()
         .write(true)
         .create(true)
@@ -162,15 +168,49 @@ fn record_result(
     Ok(())
 }
 
+fn run_game_silent<B: Board>(mut p1: Box<dyn BlitzPlayer<B>>, mut p2: Box<dyn BlitzPlayer<B>>) -> GameEndStatus {
+    let mut current_player = PlayerMark::Naught;
+    let mut board = B::default();
+    let mut time_remaining_naughts = std::time::Duration::from_millis(1000);
+    let mut time_remaining_crosses = std::time::Duration::from_millis(1000);
+    while !board.game_is_over() {
+        let t0  = std::time::Instant::now();
+        let action = match current_player {
+            PlayerMark::Naught => p1.blitz(&board,time_remaining_naughts),
+            PlayerMark::Cross => p2.blitz(&board,time_remaining_crosses),
+        };
+        let t1 = std::time::Instant::now();
+        match current_player {
+            PlayerMark::Naught => {
+                time_remaining_naughts = time_remaining_naughts.checked_sub(t1.duration_since(t0)).unwrap_or(Duration::ZERO);
+                dbg!(time_remaining_naughts);
+                if time_remaining_naughts == Duration::ZERO { return GameEndStatus::Won(PlayerMark::Cross)}},
+            PlayerMark::Cross => {
+                time_remaining_crosses = time_remaining_crosses.checked_sub(t1.duration_since(t0)).unwrap_or(Duration::ZERO);
+                dbg!(time_remaining_crosses);
+                if time_remaining_crosses == Duration::ZERO { return GameEndStatus::Won(PlayerMark::Naught)}},
+        }
+        board.place_mark(action, current_player);
+        current_player = current_player.other();
+    }
+    match board.game_status() {
+        GameStatus::Draw => GameEndStatus::Draw,
+        GameStatus::Won(p) => GameEndStatus::Won(p),
+        GameStatus::Undecided => unreachable!(),
+    }
+}
+
+fn make_player(p: PlayerSpec, mark: PlayerMark, rng: &mut ThreadRng) -> Box<dyn BlitzPlayer<C4Board>> {
+    match p {
+        PlayerSpec::Random => Box::new(RandomAi::new(rng.gen())),
+        PlayerSpec::Minimax3 => Box::new(MinMaxAi::new(mark, c4_heuristic,  3)),
+        PlayerSpec::AB5 => Box::new(ABAi::new(mark, c4_heuristic,  5)),
+    }
+}
+
 fn run_c4(player1: PlayerSpec, player2: PlayerSpec) -> GameEndStatus {
     let mut rng = rand::thread_rng();
-    let p1: Box<dyn Player<C4Board>> = match player1 {
-        PlayerSpec::Random => Box::new(RandomAi::new(rng.gen())),
-        PlayerSpec::Minimax3 => Box::new(MinMaxAi::new(PlayerMark::Naught, c4_heuristic,  3)),
-    };
-    let p2: Box<dyn Player<C4Board>> = match player2 {
-        PlayerSpec::Random => Box::new(RandomAi::new(rng.gen())),
-        PlayerSpec::Minimax3 => Box::new(MinMaxAi::new(PlayerMark::Cross, c4_heuristic,  3)),
-    };
+    let p1 = make_player(player1, PlayerMark::Naught, &mut rng);
+    let p2 = make_player(player2, PlayerMark::Cross, &mut rng);
     run_game_silent::<C4Board>(p1, p2)
 }
