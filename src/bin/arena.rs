@@ -191,7 +191,7 @@ fn record_result(
     Ok(())
 }
 
-fn run_game_silent<B: Board>(mut p1: Box<dyn BlitzPlayer<B>>, mut p2: Box<dyn BlitzPlayer<B>>) -> GameEndStatus {
+fn run_game<B: Board>(mut p1: Box<dyn BlitzPlayer<B>>, mut p2: Box<dyn BlitzPlayer<B>>) -> GameEndStatus {
     let mut current_player = PlayerMark::Naught;
     let mut board = B::default();
     let mut time_remaining_naughts = std::time::Duration::from_millis(1000);
@@ -235,5 +235,5 @@ fn run_c4(player1: PlayerSpec, player2: PlayerSpec) -> GameEndStatus {
     let mut rng = rand::thread_rng();
     let p1 = make_player(player1, PlayerMark::Naught, &mut rng);
     let p2 = make_player(player2, PlayerMark::Cross, &mut rng);
-    run_game_silent::<C4Board>(p1, p2)
+    run_game::<C4Board>(p1, p2)
 }
