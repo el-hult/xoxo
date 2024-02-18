@@ -68,11 +68,12 @@ pub enum GameType {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, Ord, PartialOrd, Serialize, Deserialize)]
-#[serde(untagged)]
 pub enum GameEndStatus {
     Draw,
-    /// Some player won byt the normal rules of the game
-    Won(PlayerMark),
+    /// X won
+    X,
+    /// O won
+    O,
 }
 
 pub fn run_game<B: Board>(mut p1: Box<dyn Player<B>>, mut p2: Box<dyn Player<B>>) -> GameEndStatus{
@@ -94,7 +95,8 @@ pub fn run_game<B: Board>(mut p1: Box<dyn Player<B>>, mut p2: Box<dyn Player<B>>
 
     match board.game_status() {
         GameStatus::Draw => GameEndStatus::Draw,
-        GameStatus::Won(p) => GameEndStatus::Won(p),
+        GameStatus::Won(PlayerMark::Cross) => GameEndStatus::X,
+        GameStatus::Won(PlayerMark::Naught) => GameEndStatus::O,
         GameStatus::Undecided => unreachable!(),
     }
 }

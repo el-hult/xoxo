@@ -11,9 +11,10 @@ use rand::seq::IteratorRandom as _;
 use rand::SeedableRng;
 
 use std::hash::Hash;
+use std::time::Duration;
 use std::{collections::HashMap, fmt::Debug};
 
-use crate::core::{GameType,Board, GameStatus, Player};
+use crate::core::{BlitzPlayer, Board, GameStatus, GameType, Player};
 
 pub trait Mdp {
     type Action: Clone + Debug + PartialEq + Eq + Hash + Ord;
@@ -40,8 +41,8 @@ pub trait Mdp {
 pub(crate) fn mcts_step<M: Mdp>(
     state: &M::State,
     c: f64,
-    state_visit_counter: &mut HashMap<M::State, f64>,
     qmap: &mut QMap<M>,
+    state_visit_counter: &mut HashMap<M::State, f64>,
     rng: &mut StdRng,
 ) -> f64 {
     if M::is_terminal(state) {
@@ -54,7 +55,7 @@ pub(crate) fn mcts_step<M: Mdp>(
     let g_return = if state_was_new {
         reward + M::rollout(new_state, rng) * M::DISCOUNT_FACTOR
     } else {
-        reward + mcts_step::<M>(&new_state, c, state_visit_counter, qmap, rng) * M::DISCOUNT_FACTOR
+        reward + mcts_step::<M>(&new_state, c, qmap, state_visit_counter, rng) * M::DISCOUNT_FACTOR
     };
 
     // Update the Q-function and the visit counter
@@ -102,7 +103,7 @@ pub(crate) fn run_train_steps<M: Mdp>(
     n_rounds: usize,
 ) {
     for _ in 0..n_rounds {
-        mcts_step::<M>(b, c, state_visit_counter, qmap, rng);
+        mcts_step::<M>(b, c, qmap, state_visit_counter,rng);
     }
 }
 
@@ -165,8 +166,8 @@ mod test {
         let mut qmap = HashMap::new();
         let mut rng = StdRng::from_entropy();
         let c = 0.75;
-        mcts_step::<CountGameMDP>(&root, c, &mut state_visit_counter, &mut qmap, &mut rng);
-        mcts_step::<CountGameMDP>(&root, c, &mut state_visit_counter, &mut qmap, &mut rng);
+        mcts_step::<CountGameMDP>(&root, c,&mut qmap, &mut state_visit_counter,  &mut rng);
+        mcts_step::<CountGameMDP>(&root, c,&mut qmap, &mut state_visit_counter,  &mut rng);
         // The root state should have been visited twice
         assert!(state_visit_counter.contains_key(&root));
         assert_eq!(state_visit_counter[&root], 2.0);
@@ -213,6 +214,7 @@ pub struct MctsAi<T: Mdp> {
     state_visit_counter: HashMap<T::State, f64>,
     rng: StdRng,
     c: f64,
+    moves_taken: u32,
 }
 
 impl<T: Mdp> MctsAi<T> {
@@ -223,7 +225,31 @@ impl<T: Mdp> MctsAi<T> {
             state_visit_counter: HashMap::new(),
             rng: StdRng::seed_from_u64(seed),
             c,
+            moves_taken: 0,
         }
+    }
+}
+
+impl<T, B> BlitzPlayer<B> for MctsAi<T>
+where
+    T: Mdp<Action = B::Coordinate, State = B>,
+    B: Board,
+{
+    fn blitz(&mut self, b: &B, _time_remaining: std::time::Duration) -> <B as Board>::Coordinate {
+        let t0 = std::time::Instant::now();
+        let mut n_steps  = 0;
+
+        loop {
+            mcts_step::<T>(b, self.c, &mut self.qmap, &mut self.state_visit_counter, &mut self.rng);
+            n_steps += 1;
+            let duration_per_step = t0.elapsed()/n_steps;
+            if t0.elapsed() + duration_per_step + Duration::from_millis(1) > _time_remaining / 8 {
+                break;
+            }
+        }
+        dbg!(n_steps);
+        self.moves_taken += 1;
+        best_action::<T>(b, self.c,  &mut self.qmap,&mut self.state_visit_counter, &mut self.rng)
     }
 }
 
@@ -248,7 +274,7 @@ where
             &self.state_visit_counter,
             &mut self.rng,
         );
-        println!("MCTS AI played {}", a);
+        self.moves_taken += 1;
         a
     }
 }

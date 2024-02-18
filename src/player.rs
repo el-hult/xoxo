@@ -5,6 +5,7 @@ pub mod mcts;
 pub mod console;
 mod heuristics;
 
+pub use mcts::MctsAi;
 pub use alpha_beta::ABAi;
 pub use min_max::MinMaxAi;
 pub use random::RandomAi;

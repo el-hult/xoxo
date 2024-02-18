@@ -3,20 +3,17 @@
 //!
 
 use clap::{Parser, Subcommand, ValueEnum};
+use enum_iterator::{all, cardinality, Sequence};
 use rand::rngs::ThreadRng;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use xoxo::player::{c4_heuristic, ABAi};
 use std::io::Seek;
 use std::path::PathBuf;
 use std::time::Duration;
-use xoxo::core::{BlitzPlayer, Board, GameStatus, PlayerMark};
-use enum_iterator::{cardinality, Sequence, all};
-
 use xoxo::{
-    core::{GameEndStatus, GameType},
+    core::{BlitzPlayer, Board, GameEndStatus, GameStatus, GameType, PlayerMark},
     game::connect_four::C4Board,
-    player::{RandomAi,MinMaxAi},
+    player::{c4_heuristic, ABAi, MctsAi, MinMaxAi, RandomAi},
 };
 
 #[derive(Parser, Debug)]
@@ -56,7 +53,13 @@ enum Commands {
 enum PlayerSpec {
     Random,
     AB5,
-    Minimax3,
+    Minimax4,
+    /// MCTS Ai with c=2 in the UCB1 formula
+    MCTS2,
+    /// MCTS Ai with c=1 in the UCB1 formula
+    MCTS1,
+    /// MCTS Ai with c=0.5 in the UCB1 formula
+    MCTS3,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -67,8 +70,6 @@ struct GameRecord {
     result: GameEndStatus,
     played_at: chrono::DateTime<chrono::Local>,
 }
-
-
 
 fn main() -> anyhow::Result<()> {
     let args = Cli::parse();
@@ -117,10 +118,10 @@ fn print_out_report(outfile: &PathBuf, game_to_report: GameType) -> anyhow::Resu
                 n_wins[p1num][p2num] += 0.5;
                 n_wins[p2num][p1num] += 0.5;
             }
-            GameEndStatus::Won(PlayerMark::Naught) => {
+            GameEndStatus::O => {
                 n_wins[p1num][p2num] += 1.0;
             }
-            GameEndStatus::Won(PlayerMark::Cross) => {
+            GameEndStatus::X => {
                 n_wins[p2num][p1num] += 1.0;
             }
         }
@@ -130,16 +131,22 @@ fn print_out_report(outfile: &PathBuf, game_to_report: GameType) -> anyhow::Resu
 }
 
 /// Print the result matrices
-fn print_result_matrix<const N:usize>(n_wins: [[f64; N]; N], n_games: [[f64; N]; N]) {
+fn print_result_matrix<const N: usize>(n_wins: [[f64; N]; N], n_games: [[f64; N]; N]) {
     println!("Win percentages:");
     print!("{:>10}  ", "");
     let player_labels: Vec<String> = all::<PlayerSpec>()
-        .map(|x| serde_json::to_string(&x)
+        .map(|x| {
+            serde_json::to_string(&x)
                 .expect("This serialization should not fail")
-                .strip_prefix("\"").unwrap()
-                .strip_suffix("\"").unwrap()
-                .chars().take(6).collect()
-            ).collect::<Vec<_>>();
+                .strip_prefix("\"")
+                .unwrap()
+                .strip_suffix("\"")
+                .unwrap()
+                .chars()
+                .take(6)
+                .collect()
+        })
+        .collect::<Vec<_>>();
     if player_labels.len() != N {
         panic!("The number of player labels is not equal to the number of players");
     }
@@ -153,14 +160,13 @@ fn print_result_matrix<const N:usize>(n_wins: [[f64; N]; N], n_games: [[f64; N];
             let winrate = if n_games[i][j] == 0.0 {
                 "nil".into()
             } else {
-                format!("{:6.2}%",100.0*n_wins[i][j] / n_games[i][j])
+                format!("{:6.2}%", 100.0 * n_wins[i][j] / n_games[i][j])
             };
             print!("{:>10}  ", winrate);
         }
         println!();
     }
 }
-
 
 fn record_result(
     outfile: &PathBuf,
@@ -191,43 +197,64 @@ fn record_result(
     Ok(())
 }
 
-fn run_game<B: Board>(mut p1: Box<dyn BlitzPlayer<B>>, mut p2: Box<dyn BlitzPlayer<B>>) -> GameEndStatus {
+fn run_game<B: Board>(
+    mut p1: Box<dyn BlitzPlayer<B>>,
+    mut p2: Box<dyn BlitzPlayer<B>>,
+) -> GameEndStatus {
     let mut current_player = PlayerMark::Naught;
     let mut board = B::default();
     let mut time_remaining_naughts = std::time::Duration::from_millis(1000);
     let mut time_remaining_crosses = std::time::Duration::from_millis(1000);
     while !board.game_is_over() {
-        let t0  = std::time::Instant::now();
+        let t0 = std::time::Instant::now();
         let action = match current_player {
-            PlayerMark::Naught => p1.blitz(&board,time_remaining_naughts),
-            PlayerMark::Cross => p2.blitz(&board,time_remaining_crosses),
+            PlayerMark::Naught => p1.blitz(&board, time_remaining_naughts),
+            PlayerMark::Cross => p2.blitz(&board, time_remaining_crosses),
         };
         let t1 = std::time::Instant::now();
         match current_player {
             PlayerMark::Naught => {
-                time_remaining_naughts = time_remaining_naughts.checked_sub(t1.duration_since(t0)).unwrap_or(Duration::ZERO);
-                dbg!(time_remaining_naughts);
-                if time_remaining_naughts == Duration::ZERO { return GameEndStatus::Won(PlayerMark::Cross)}},
+                time_remaining_naughts = time_remaining_naughts
+                    .checked_sub(t1.duration_since(t0))
+                    .unwrap_or(Duration::ZERO);
+                if time_remaining_naughts == Duration::ZERO {
+                    return GameEndStatus::X;
+                }
+            }
             PlayerMark::Cross => {
-                time_remaining_crosses = time_remaining_crosses.checked_sub(t1.duration_since(t0)).unwrap_or(Duration::ZERO);
-                dbg!(time_remaining_crosses);
-                if time_remaining_crosses == Duration::ZERO { return GameEndStatus::Won(PlayerMark::Naught)}},
+                time_remaining_crosses = time_remaining_crosses
+                    .checked_sub(t1.duration_since(t0))
+                    .unwrap_or(Duration::ZERO);
+                if time_remaining_crosses == Duration::ZERO {
+                    return GameEndStatus::O;
+                }
+            }
         }
         board.place_mark(action, current_player);
         current_player = current_player.other();
     }
+    dbg!(time_remaining_crosses);
+    dbg!(time_remaining_naughts);
     match board.game_status() {
         GameStatus::Draw => GameEndStatus::Draw,
-        GameStatus::Won(p) => GameEndStatus::Won(p),
+        GameStatus::Won(PlayerMark::Cross) => GameEndStatus::X,
+        GameStatus::Won(PlayerMark::Naught) => GameEndStatus::O,
         GameStatus::Undecided => unreachable!(),
     }
 }
 
-fn make_player(p: PlayerSpec, mark: PlayerMark, rng: &mut ThreadRng) -> Box<dyn BlitzPlayer<C4Board>> {
+fn make_player(
+    p: PlayerSpec,
+    mark: PlayerMark,
+    rng: &mut ThreadRng,
+) -> Box<dyn BlitzPlayer<C4Board>> {
     match p {
         PlayerSpec::Random => Box::new(RandomAi::new(rng.gen())),
-        PlayerSpec::Minimax3 => Box::new(MinMaxAi::new(mark, c4_heuristic,  3)),
-        PlayerSpec::AB5 => Box::new(ABAi::new(mark, c4_heuristic,  5)),
+        PlayerSpec::Minimax4 => Box::new(MinMaxAi::new(mark, c4_heuristic, 4)),
+        PlayerSpec::AB5 => Box::new(ABAi::new(mark, c4_heuristic, 5)),
+        PlayerSpec::MCTS1 => Box::new(MctsAi::<C4Board>::new(rng.gen(),1.0)),
+        PlayerSpec::MCTS2 => Box::new(MctsAi::<C4Board>::new(rng.gen(),2.0)),
+        PlayerSpec::MCTS3 => Box::new(MctsAi::<C4Board>::new(rng.gen(),0.5)),
     }
 }
 
