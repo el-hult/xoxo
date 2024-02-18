@@ -11,6 +11,7 @@ use std::io::Seek;
 use std::path::PathBuf;
 use std::time::Duration;
 use xoxo::core::{BlitzPlayer, Board, GameStatus, PlayerMark};
+use enum_iterator::{cardinality, Sequence, all};
 
 use xoxo::{
     core::{GameEndStatus, GameType},
@@ -51,21 +52,11 @@ enum Commands {
     },
 }
 
-#[derive(Debug, Clone, Copy, ValueEnum, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, ValueEnum, Serialize, Deserialize, Sequence)]
 enum PlayerSpec {
     Random,
-    Minimax3,
     AB5,
-}
-impl PlayerSpec {
-    const VARIANTS: usize = 3;
-    fn variant_number(&self) -> usize {
-        match self {
-            PlayerSpec::Random => 0,
-            PlayerSpec::Minimax3 => 1,
-            PlayerSpec::AB5 => 2,
-        }
-    }
+    Minimax3,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -97,8 +88,8 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn print_out_report(outfile: &PathBuf, game_to_report: GameType) -> anyhow::Result<()> {
-    let mut n_wins = vec![vec![0.0; PlayerSpec::VARIANTS]; PlayerSpec::VARIANTS];
-    let mut n_games = vec![vec![0.0; PlayerSpec::VARIANTS]; PlayerSpec::VARIANTS];
+    let mut n_wins = [[0.0; cardinality::<PlayerSpec>()]; cardinality::<PlayerSpec>()];
+    let mut n_games = [[0.0; cardinality::<PlayerSpec>()]; cardinality::<PlayerSpec>()];
 
     // Iterate the lines in the file, and for each line, update the n_wins and n_games
     let file = std::fs::File::open(outfile).expect(&format!(
@@ -117,8 +108,8 @@ fn print_out_report(outfile: &PathBuf, game_to_report: GameType) -> anyhow::Resu
         if game_to_report != game {
             continue;
         }
-        let p1num = player1.variant_number();
-        let p2num = player2.variant_number();
+        let p1num = player1 as usize;
+        let p2num = player2 as usize;
         n_games[p1num][p2num] += 1.0;
         n_games[p2num][p1num] += 1.0;
         match result {
@@ -134,10 +125,42 @@ fn print_out_report(outfile: &PathBuf, game_to_report: GameType) -> anyhow::Resu
             }
         }
     }
-    println!("Wins:\n {:?}", n_wins);
-    println!("Games:\n {:?}", n_games);
+    print_result_matrix(n_wins, n_games);
     Ok(())
 }
+
+/// Print the result matrices
+fn print_result_matrix<const N:usize>(n_wins: [[f64; N]; N], n_games: [[f64; N]; N]) {
+    println!("Win percentages:");
+    print!("{:>10}  ", "");
+    let player_labels: Vec<String> = all::<PlayerSpec>()
+        .map(|x| serde_json::to_string(&x)
+                .expect("This serialization should not fail")
+                .strip_prefix("\"").unwrap()
+                .strip_suffix("\"").unwrap()
+                .chars().take(6).collect()
+            ).collect::<Vec<_>>();
+    if player_labels.len() != N {
+        panic!("The number of player labels is not equal to the number of players");
+    }
+    for j in player_labels.iter() {
+        print!("{:>10}  ", j);
+    }
+    println!();
+    for i in 0..N {
+        print!("{:>10}  ", player_labels[i]);
+        for j in 0..N {
+            let winrate = if n_games[i][j] == 0.0 {
+                "nil".into()
+            } else {
+                format!("{:6.2}%",100.0*n_wins[i][j] / n_games[i][j])
+            };
+            print!("{:>10}  ", winrate);
+        }
+        println!();
+    }
+}
+
 
 fn record_result(
     outfile: &PathBuf,
