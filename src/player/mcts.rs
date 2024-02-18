@@ -51,7 +51,7 @@ pub(crate) fn mcts_step<M: Mdp>(
     let t = *state_visit_counter.get(state).unwrap_or(&0.0);
     let best_action = best_action::<M>(state, c, qmap, state_visit_counter, rng);
     let (new_state, reward) = M::act(state.clone(), &best_action);
-    let state_was_new = state_visit_counter.get(state).is_none();
+    let state_was_new = state_visit_counter.get(&new_state).is_none();
     let g_return = if state_was_new {
         reward + M::rollout(new_state, rng) * M::DISCOUNT_FACTOR
     } else {
