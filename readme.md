@@ -12,3 +12,9 @@ Connect Four is strange, it has a constant medium large branch factor, so the MC
 Thre are two binaries:
 - tui, which is a terminal user interface to play a single game and see progress etc
 - arena, which plays a single bot-vs-bot game and outputs the result to a csv file for later analysis
+
+
+Here is a command on how I profile with flamegraph:
+```bash
+PERF=/usr/lib/linux-tools/5.4.0-171-generic/perf flamegraph -- ./target/release/arena run --game c4 --player2 minimax4 --player1 mcts3
+```
