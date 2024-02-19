@@ -124,8 +124,6 @@ fn print_out_report(outfile: &PathBuf, game_to_report: GameType) -> anyhow::Resu
         n_games[p2num][p1num] += 1.0;
         match result {
             GameEndStatus::Draw => {
-                n_wins[p1num][p2num] += 0.5;
-                n_wins[p2num][p1num] += 0.5;
             }
             GameEndStatus::O => {
                 n_wins[p1num][p2num] += 1.0;
