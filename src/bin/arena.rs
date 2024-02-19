@@ -25,15 +25,16 @@ struct Cli {
 
     #[command(subcommand)]
     command: Commands,
+
+    ///Which game to report on
+    #[arg(short, long)]
+    game: GameType,
 }
 
 #[derive(Subcommand, Debug)]
 enum Commands {
     /// Run a game
     Run {
-        #[arg(short, long)]
-        game: GameType,
-
         /// what kind of player is player1? Available options:
         /// "random"
         #[arg(short = 'p', long)]
@@ -42,17 +43,14 @@ enum Commands {
         #[arg(short = 'q', long)]
         player2: PlayerSpec,
     },
-    Report {
-        ///Which game to report on
-        #[arg(short, long)]
-        game: GameType,
-    },
+    /// Report on the results of the games in the terminal
+    Report {},
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum, Serialize, Deserialize, Sequence)]
 enum PlayerSpec {
     Random,
-    AB5,
+    AB6,
     Minimax4,
     /// MCTS Ai with c=2 in the UCB1 formula
     MCTS2,
@@ -69,22 +67,33 @@ struct GameRecord {
     player2: PlayerSpec,
     result: GameEndStatus,
     played_at: chrono::DateTime<chrono::Local>,
+    /// Time remaining for player 1 when game ended, in microseconds
+    time1: u128,
+    /// Time remaining for player 2 when game ended, in microseconds
+    time2: u128,
 }
 
 fn main() -> anyhow::Result<()> {
     let args = Cli::parse();
+    let game = args.game;
+    assert_eq!(game, GameType::C4, "Only connect four is supported");
     match args.command {
         Commands::Run {
-            player1,
-            player2,
-            game: GameType::C4,
-            ..
+            player1, player2, ..
         } => {
-            let result: GameEndStatus = run_c4(player1, player2);
-            record_result(&args.outfile, GameType::C4, player1, player2, result)
+            let (result, time1, time2) = run_c4(player1, player2);
+            let record = GameRecord {
+                game,
+                player1,
+                player2,
+                result,
+                played_at: chrono::Local::now(),
+                time1: time1.as_micros(),
+                time2: time2.as_micros(),
+            };
+            record_result(&args.outfile, record)
         }
-        Commands::Report { game } => print_out_report(&args.outfile, game),
-        _ => todo!("Implement the rest"),
+        Commands::Report {} => print_out_report(&args.outfile, game),
     }
 }
 
@@ -160,7 +169,11 @@ fn print_result_matrix<const N: usize>(n_wins: [[f64; N]; N], n_games: [[f64; N]
             let winrate = if n_games[i][j] == 0.0 {
                 "nil".into()
             } else {
-                format!("{:6.2}%", 100.0 * n_wins[i][j] / n_games[i][j])
+                format!(
+                    "{:3.0}% ({:.0})",
+                    100.0 * n_wins[i][j] / n_games[i][j],
+                    n_games[i][j]
+                )
             };
             print!("{:>10}  ", winrate);
         }
@@ -168,13 +181,7 @@ fn print_result_matrix<const N: usize>(n_wins: [[f64; N]; N], n_games: [[f64; N]
     }
 }
 
-fn record_result(
-    outfile: &PathBuf,
-    game: GameType,
-    player1: PlayerSpec,
-    player2: PlayerSpec,
-    result: GameEndStatus,
-) -> anyhow::Result<()> {
+fn record_result(outfile: &PathBuf, record: GameRecord) -> anyhow::Result<()> {
     let mut file = std::fs::OpenOptions::new()
         .write(true)
         .create(true)
@@ -185,13 +192,6 @@ fn record_result(
         .has_headers(needs_headers)
         .from_writer(file);
 
-    let record = GameRecord {
-        game,
-        player1,
-        player2,
-        result,
-        played_at: chrono::Local::now(),
-    };
     wtr.serialize(record)?;
     wtr.flush()?;
     Ok(())
@@ -200,7 +200,7 @@ fn record_result(
 fn run_game<B: Board>(
     mut p1: Box<dyn BlitzPlayer<B>>,
     mut p2: Box<dyn BlitzPlayer<B>>,
-) -> GameEndStatus {
+) -> (GameEndStatus, Duration, Duration) {
     let mut current_player = PlayerMark::Naught;
     let mut board = B::default();
     let mut time_remaining_naughts = std::time::Duration::from_millis(1000);
@@ -218,7 +218,11 @@ fn run_game<B: Board>(
                     .checked_sub(t1.duration_since(t0))
                     .unwrap_or(Duration::ZERO);
                 if time_remaining_naughts == Duration::ZERO {
-                    return GameEndStatus::X;
+                    return (
+                        GameEndStatus::X,
+                        time_remaining_naughts,
+                        time_remaining_crosses,
+                    );
                 }
             }
             PlayerMark::Cross => {
@@ -226,19 +230,35 @@ fn run_game<B: Board>(
                     .checked_sub(t1.duration_since(t0))
                     .unwrap_or(Duration::ZERO);
                 if time_remaining_crosses == Duration::ZERO {
-                    return GameEndStatus::O;
+                    return (
+                        GameEndStatus::O,
+                        time_remaining_naughts,
+                        time_remaining_crosses,
+                    );
                 }
             }
         }
         board.place_mark(action, current_player);
         current_player = current_player.other();
     }
-    dbg!(time_remaining_crosses);
-    dbg!(time_remaining_naughts);
+    // dbg!(time_remaining_crosses);
+    // dbg!(time_remaining_naughts);
     match board.game_status() {
-        GameStatus::Draw => GameEndStatus::Draw,
-        GameStatus::Won(PlayerMark::Cross) => GameEndStatus::X,
-        GameStatus::Won(PlayerMark::Naught) => GameEndStatus::O,
+        GameStatus::Draw => (
+            GameEndStatus::Draw,
+            time_remaining_naughts,
+            time_remaining_crosses,
+        ),
+        GameStatus::Won(PlayerMark::Cross) => (
+            GameEndStatus::X,
+            time_remaining_naughts,
+            time_remaining_crosses,
+        ),
+        GameStatus::Won(PlayerMark::Naught) => (
+            GameEndStatus::O,
+            time_remaining_naughts,
+            time_remaining_crosses,
+        ),
         GameStatus::Undecided => unreachable!(),
     }
 }
@@ -251,14 +271,14 @@ fn make_player(
     match p {
         PlayerSpec::Random => Box::new(RandomAi::new(rng.gen())),
         PlayerSpec::Minimax4 => Box::new(MinMaxAi::new(mark, c4_heuristic, 4)),
-        PlayerSpec::AB5 => Box::new(ABAi::new(mark, c4_heuristic, 5)),
-        PlayerSpec::MCTS1 => Box::new(MctsAi::<C4Board>::new(rng.gen(),1.0)),
-        PlayerSpec::MCTS2 => Box::new(MctsAi::<C4Board>::new(rng.gen(),2.0)),
-        PlayerSpec::MCTS3 => Box::new(MctsAi::<C4Board>::new(rng.gen(),0.5)),
+        PlayerSpec::AB6 => Box::new(ABAi::new(mark, c4_heuristic, 6)),
+        PlayerSpec::MCTS1 => Box::new(MctsAi::<C4Board>::new(rng.gen(), 1.0)),
+        PlayerSpec::MCTS2 => Box::new(MctsAi::<C4Board>::new(rng.gen(), 2.0)),
+        PlayerSpec::MCTS3 => Box::new(MctsAi::<C4Board>::new(rng.gen(), 0.5)),
     }
 }
 
-fn run_c4(player1: PlayerSpec, player2: PlayerSpec) -> GameEndStatus {
+fn run_c4(player1: PlayerSpec, player2: PlayerSpec) -> (GameEndStatus, Duration, Duration) {
     let mut rng = rand::thread_rng();
     let p1 = make_player(player1, PlayerMark::Naught, &mut rng);
     let p2 = make_player(player2, PlayerMark::Cross, &mut rng);

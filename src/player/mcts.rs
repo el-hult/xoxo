@@ -42,42 +42,57 @@ pub(crate) fn mcts_step<M: Mdp>(
     state: &M::State,
     c: f64,
     qmap: &mut QMap<M>,
-    state_visit_counter: &mut HashMap<M::State, f64>,
     rng: &mut StdRng,
 ) -> f64 {
     if M::is_terminal(state) {
         return 0.0;
     }
-    let t = *state_visit_counter.get(state).unwrap_or(&0.0);
-    let best_action = best_action::<M>(state, c, qmap, state_visit_counter, rng);
+    let best_action = best_action::<M>(state, c, qmap,  rng);
     let (new_state, reward) = M::act(state.clone(), &best_action);
-    let state_was_new = state_visit_counter.get(&new_state).is_none();
+    let state_was_new = qmap.n_state_visits(&new_state) == 0.0;
     let g_return = if state_was_new {
         reward + M::rollout(new_state, rng) * M::DISCOUNT_FACTOR
     } else {
-        reward + mcts_step::<M>(&new_state, c, qmap, state_visit_counter, rng) * M::DISCOUNT_FACTOR
+        reward + mcts_step::<M>(&new_state, c, qmap, rng) * M::DISCOUNT_FACTOR
     };
 
-    // Update the Q-function and the visit counter
-    state_visit_counter.insert(state.clone(), t + 1.0);
-    let state_action_key = (state.clone(), best_action.clone());
+    // Update the Q-function
+    let state_action_key = (state.clone(), best_action);
     let (w, v) = qmap.get(&state_action_key).unwrap_or(&(0.0, 0.0));
     qmap.insert(state_action_key, (w + g_return, v + 1.0));
 
     g_return
 }
 
-pub(crate) type QMap<M> = HashMap<(<M as Mdp>::State, <M as Mdp>::Action), (f64, f64)>;
+pub(crate) struct QMap<M:Mdp> {
+    data: HashMap<(<M as Mdp>::State, <M as Mdp>::Action), (f64, f64)>
+}
+
+impl<M:Mdp> QMap<M> {
+    pub fn new() -> Self {
+        QMap {
+            data: HashMap::new()
+        }
+    }
+    pub fn get(&self, key: &(<M as Mdp>::State, <M as Mdp>::Action)) -> Option<&(f64, f64)> {
+        self.data.get(key)
+    }
+    pub fn insert(&mut self, key: (<M as Mdp>::State, <M as Mdp>::Action), value: (f64, f64)) {
+        self.data.insert(key, value);
+    }
+    pub fn n_state_visits(&self, state: &<M as Mdp>::State) -> f64 {
+        self.data.iter().filter(|((s, _), _)| s == state).map(|(_, (_, v))| v).sum()
+    }
+}
 
 pub(crate) fn best_action<M: Mdp>(
     state: &M::State,
     c: f64,
     qmap: &QMap<M>,
-    state_visit_counter: &HashMap<M::State, f64>,
     rng: &mut StdRng,
 ) -> M::Action {
     let allowed_actions = M::allowed_actions(state);
-    let t = *state_visit_counter.get(state).unwrap_or(&0.0);
+    let t = qmap.n_state_visits(state);
     let best_action = allowed_actions
         .into_iter()
         .map(|action| {
@@ -98,12 +113,11 @@ pub(crate) fn run_train_steps<M: Mdp>(
     b: &M::State,
     c: f64,
     qmap: &mut QMap<M>,
-    state_visit_counter: &mut HashMap<M::State, f64>,
     rng: &mut StdRng,
     n_rounds: usize,
 ) {
     for _ in 0..n_rounds {
-        mcts_step::<M>(b, c, qmap, state_visit_counter,rng);
+        mcts_step::<M>(b, c, qmap, rng);
     }
 }
 
@@ -162,22 +176,21 @@ mod test {
     #[test]
     fn test_mcts_step() {
         let root: CountGameState = CountGameState(vec![]);
-        let mut state_visit_counter = HashMap::new();
-        let mut qmap = HashMap::new();
+        let mut qmap = QMap::new();
         let mut rng = StdRng::from_entropy();
         let c = 0.75;
-        mcts_step::<CountGameMDP>(&root, c,&mut qmap, &mut state_visit_counter,  &mut rng);
-        mcts_step::<CountGameMDP>(&root, c,&mut qmap, &mut state_visit_counter,  &mut rng);
+        mcts_step::<CountGameMDP>(&root, c,&mut qmap,  &mut rng);
+        mcts_step::<CountGameMDP>(&root, c,&mut qmap,  &mut rng);
         // The root state should have been visited twice
-        assert!(state_visit_counter.contains_key(&root));
-        assert_eq!(state_visit_counter[&root], 2.0);
+        assert!(qmap.n_state_visits(&root) > 0.0);
+        assert_eq!(qmap.n_state_visits(&root) ,2.0);
         // check that there are two actions in the qmap associated with the root state
-        let visits = qmap
+        let visits = qmap.data
             .iter()
             .filter(|((s, _), (_, _))| s == &root)
             .map(|(_, (_, v))| v)
             .collect::<Vec<_>>();
-        dbg!(&qmap);
+        // dbg!(&qmap);
         assert_eq!(visits.len(), 2);
         assert_eq!(*visits[0], 1.0);
         assert_eq!(*visits[1], 1.0);
@@ -187,20 +200,14 @@ mod test {
     #[test]
     fn test_mcts() {
         let root: CountGameState = CountGameState(vec![]);
-        let mut state_visit_counter = HashMap::new();
-        let mut qmap = HashMap::new();
+        let mut qmap = QMap::new();
         let mut rng = StdRng::from_entropy();
         let c = 0.75;
-        run_train_steps::<CountGameMDP>(
-            &root,
-            c,
-            &mut qmap,
-            &mut state_visit_counter,
-            &mut rng,
-            1000,
-        );
+        for _ in 0..10000 {
+            mcts_step::<CountGameMDP>(&root, c, &mut qmap,&mut rng);
+        }
         let best_move =
-            best_action::<CountGameMDP>(&root, c, &qmap, &state_visit_counter, &mut rng);
+            best_action::<CountGameMDP>(&root, c, &qmap, &mut rng);
         assert_eq!(
             best_move,
             CountGameAction::Add,
@@ -211,7 +218,6 @@ mod test {
 
 pub struct MctsAi<T: Mdp> {
     qmap: QMap<T>,
-    state_visit_counter: HashMap<T::State, f64>,
     rng: StdRng,
     c: f64,
     moves_taken: u32,
@@ -222,7 +228,6 @@ impl<T: Mdp> MctsAi<T> {
     pub fn new(seed: u64, c: f64) -> Self {
         MctsAi {
             qmap: QMap::<T>::new(),
-            state_visit_counter: HashMap::new(),
             rng: StdRng::seed_from_u64(seed),
             c,
             moves_taken: 0,
@@ -240,16 +245,16 @@ where
         let mut n_steps  = 0;
 
         loop {
-            mcts_step::<T>(b, self.c, &mut self.qmap, &mut self.state_visit_counter, &mut self.rng);
+            mcts_step::<T>(b, self.c, &mut self.qmap, &mut self.rng);
             n_steps += 1;
             let duration_per_step = t0.elapsed()/n_steps;
             if t0.elapsed() + duration_per_step + Duration::from_millis(1) > _time_remaining / 8 {
                 break;
             }
         }
-        dbg!(n_steps);
+        // dbg!(n_steps);
         self.moves_taken += 1;
-        best_action::<T>(b, self.c,  &mut self.qmap,&mut self.state_visit_counter, &mut self.rng)
+        best_action::<T>(b, self.c,  &mut self.qmap, &mut self.rng)
     }
 }
 
@@ -263,7 +268,6 @@ where
             b,
             self.c,
             &mut self.qmap,
-            &mut self.state_visit_counter,
             &mut self.rng,
             10000,
         );
@@ -271,7 +275,6 @@ where
             b,
             self.c,
             &self.qmap,
-            &self.state_visit_counter,
             &mut self.rng,
         );
         self.moves_taken += 1;
