@@ -6,9 +6,10 @@ use std::fmt::Display;
 
 use clap::ValueEnum;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord, Serialize, Deserialize, Default)]
 pub enum PlayerMark {
     Cross,
+    #[default]
     Naught,
 }
 
@@ -50,8 +51,9 @@ pub trait Board: Display + Default {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, Ord, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, Ord, PartialOrd,Default)]
 pub enum GameStatus {
+    #[default]
     Undecided,
     Draw,
     Won(PlayerMark),

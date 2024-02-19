@@ -2,6 +2,8 @@ use std::fmt::Display;
 
 use crate::core::{Board, GameStatus, PlayerMark};
 
+type RawBoard = [[Option<PlayerMark>; 6]; 7];
+
 /// A board is a 7x6 grid, where you can place a marker in one of the 7 columns
 /// it lands on the top in that column we number the columns left to right and bottom to top
 /// Since the board is a nested array the first index is the column and the second index is the row
@@ -16,10 +18,15 @@ use crate::core::{Board, GameStatus, PlayerMark};
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord, Default)]
 pub struct C4Board {
     /// 7 columns, 6 rows. N.B. it is column major
-    board: [[Option<PlayerMark>; 6]; 7],
+    board: RawBoard,
+    /// The game status must always be valid. I.e. you must always keep it up to date in all &mut self methods
+    status: GameStatus,
+    /// Current player must always be valid. I.e. you must always keep it up to date in all &mut self methods
+    current_player: PlayerMark,
 }
 
-impl From<C4Board> for [[Option<PlayerMark>; 6]; 7] {
+
+impl From<C4Board> for RawBoard {
     fn from(val: C4Board) -> Self {
         val.board
     }
@@ -28,10 +35,7 @@ impl From<C4Board> for [[Option<PlayerMark>; 6]; 7] {
 impl Board for C4Board {
     type Coordinate = usize;
     fn current_player(&self) -> PlayerMark {
-        match self.board.iter().flatten().filter(|x| x.is_some()).count() % 2 {
-            0 => PlayerMark::Naught,
-            _ => PlayerMark::Cross,
-        }
+        self.current_player
     }
     fn valid_moves(&self) -> Vec<usize> {
         self.board
@@ -41,19 +45,20 @@ impl Board for C4Board {
             .collect()
     }
     fn game_status(&self) -> GameStatus {
-        match self.winner() {
-            Some(m) => GameStatus::Won(m),
-            None if self.board.iter().flatten().all(|cell| cell.is_some()) => GameStatus::Draw,
-            _ => GameStatus::Undecided,
-        }
+        self.status
     }
 
-    fn place_mark(&mut self, a: usize, marker: PlayerMark) {
-        assert!(a < 7, "Column out of bounds");
-        let column = &mut self.board[a];
-        assert!(column[5].is_none(), "Placed marker in full column");
-        let top_of_column = column.iter_mut().find(|x| x.is_none()).unwrap();
-        *top_of_column = Some(marker);
+    fn place_mark(&mut self, column: usize, marker: PlayerMark) {
+        assert!(column < 7, "Column out of bounds");
+        let row = self.board[column].iter().position(|x| x.is_none()).expect("Column is full");
+        self.board[column][row] = Some(marker);
+        let i_won =Some(self.current_player);
+        if (Self::raw_winner_in_column(&self.board,column) == i_won) || (Self::raw_winner_in_row(&self.board,row) == i_won)|| (Self::raw_winner_in_slash_diagonal(&self.board,5+column-row)== i_won) || (Self::raw_winner_in_backslash_diagonal(&self.board,column+row)== i_won) {
+            self.status = GameStatus::Won(marker);
+        } else if row == 5 && self.board.iter().all(|col| col.iter().all(|x| x.is_some())) {
+            self.status = GameStatus::Draw;
+        }
+        self.current_player = self.current_player.other();
     }
 }
 
@@ -84,35 +89,78 @@ macro_rules! parse_c4board {
                 };
             }
         }
-        C4Board { board: game_board }
+        
+        let current_player = C4Board::raw_current_player(game_board);
+        let status = C4Board::raw_game_status(game_board);
+        
+        C4Board { board: game_board, current_player, status}
+
     }};
 }
 impl C4Board {
+
     pub fn winner(&self) -> Option<PlayerMark> {
+        match self.status {
+            GameStatus::Won(m) => Some(m),
+            _ => None,
+        }
+    }
+
+    /// Compute who is next to go, based on the current board
+    /// Useful in debugging
+    #[cfg(test)]
+    fn raw_current_player(game_board: RawBoard) -> PlayerMark {
+        let n_crosses = game_board
+            .iter()
+            .flatten()
+            .filter(|x| **x == Some(PlayerMark::Cross))
+            .count();
+        let n_naughts = game_board.iter().flatten().filter(|x| **x == Some(PlayerMark::Naught)).count();
+        let next_player = if n_crosses == n_naughts {
+                PlayerMark::Naught 
+            } else if n_naughts == n_crosses+1{ 
+                PlayerMark::Cross 
+            } else {
+                panic!("The number of x vs o is not valid for a game of connect four")
+            };
+        next_player
+    }
+    #[cfg(test)]
+    fn raw_game_status(board : RawBoard) -> GameStatus {
+        match Self::raw_winner(&board) {
+            Some(m) => GameStatus::Won(m),
+            None if board.iter().flatten().all(|cell| cell.is_some()) => GameStatus::Draw,
+            _ => GameStatus::Undecided,
+        }
+    }
+
+    /// Compute if there is a winner from the board data alone
+    /// Useful in debugging
+    pub fn raw_winner(board: &RawBoard) -> Option<PlayerMark> {
         for i in 0..7 {
-            if let Some(winner) = self.winner_in_column(i) {
+            if let Some(winner) = Self::raw_winner_in_column(board,i) {
                 return Some(winner);
             }
         }
         for i in 0..6 {
-            if let Some(winner) = self.winner_in_row(i) {
+            if let Some(winner) = Self::raw_winner_in_row(board,i) {
                 return Some(winner);
             }
         }
         for i in 3..=8 {
-            if let Some(winner) = self.winner_in_slash_diagonal(i) {
+            if let Some(winner) = Self::raw_winner_in_slash_diagonal(board,i) {
                 return Some(winner);
             }
         }
         for i in 3..=8 {
-            if let Some(winner) = self.winner_in_backslash_diagonal(i) {
+            if let Some(winner) = Self::raw_winner_in_backslash_diagonal(board,i) {
                 return Some(winner);
             }
         }
         None
     }
-    fn winner_in_column(&self, col: usize) -> Option<PlayerMark> {
-        let col = &self.board[col];
+    fn raw_winner_in_column(board: &RawBoard, col: usize) -> Option<PlayerMark> {
+        let col = &board[col];
         for i in 0..3 {
             if let Some(mark) = col[i] {
                 if col[i + 1..i + 4].iter().all(|x| *x == Some(mark)) {
@@ -122,10 +170,10 @@ impl C4Board {
         }
         None
     }
-    fn winner_in_row(&self, row: usize) -> Option<PlayerMark> {
+    fn raw_winner_in_row(board: &RawBoard, row: usize) -> Option<PlayerMark> {
         for i in 0..4 {
-            if let Some(mark) = self.board[i][row] {
-                if (1..4).all(|j| self.board[i + j][row] == Some(mark)) {
+            if let Some(mark) = board[i][row] {
+                if (1..4).all(|j| board[i + j][row] == Some(mark)) {
                     return Some(mark);
                 }
             }
@@ -137,13 +185,9 @@ impl C4Board {
     /// diagonal 0 has 1 element, and that is only [0][5]
     /// diagonal 1 has 2 elements, and that is [0][4] and [1][5]
     /// etc
-    fn winner_in_slash_diagonal(&self, diag: usize) -> Option<PlayerMark> {
+    fn raw_winner_in_slash_diagonal(board: &RawBoard, diag: usize) -> Option<PlayerMark> {
         // if this diagonal has 3 or less elements, it can't have a winner
-        assert!(
-            (3..=8).contains(&diag),
-            "Only the diagonals 3..=5 have 4 or more cells. Got diag = {}",
-            diag
-        );
+        if !(3..=8).contains(&diag) { return None; }
         let n_chances = match diag {
             3 | 8 => 1,
             4 | 7 => 2,
@@ -160,9 +204,9 @@ impl C4Board {
                 8 => (3 + i, i),
                 _ => unreachable!(),
             };
-            let candidate = self.board[x][y];
+            let candidate = board[x][y];
             candidate?;
-            if (1..4).all(|j| self.board[x + j][y + j] == candidate) {
+            if (1..4).all(|j| board[x + j][y + j] == candidate) {
                 return candidate;
             }
         }
@@ -172,12 +216,11 @@ impl C4Board {
     /// Diagonal 0 has 1 element, and that is only [0][0]
     /// Diagonal 1 has 2 elements, and that is [0][1] and [1][0]
     /// etc
-    fn winner_in_backslash_diagonal(&self, diag: usize) -> Option<PlayerMark> {
+    fn raw_winner_in_backslash_diagonal(board: &RawBoard, diag: usize) -> Option<PlayerMark> {
         // if this diagonal has 3 or less elements, it can't have a winner
-        assert!(
-            (3..=8).contains(&diag),
-            "Only the diagonals 3..=5 have 4 or more cells"
-        );
+        if !(3..=8).contains(&diag) {
+            return None;
+        }
         let n_chances = match diag {
             3 | 8 => 1,
             4 | 7 => 2,
@@ -194,11 +237,11 @@ impl C4Board {
                 8 => (3 + i, 5 - i),
                 _ => unreachable!(),
             };
-            let candidate = self.board[x][y];
+            let candidate = board[x][y];
             if candidate.is_none() {
                 continue;
             }
-            if (1..4).all(|j| self.board[x + j][y - j] == candidate) {
+            if (1..4).all(|j| board[x + j][y - j] == candidate) {
                 return candidate;
             }
         }
@@ -225,7 +268,8 @@ impl Display for C4Board {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::GameStatus;
+    use crate::core::{GameStatus, Board};
+
 
     use super::*;
     #[test]
@@ -234,9 +278,9 @@ mod tests {
         board.place_mark(0, PlayerMark::Cross);
         board.place_mark(0, PlayerMark::Cross);
         board.place_mark(0, PlayerMark::Cross);
-        assert_eq!(board.winner_in_column(0), None);
+        assert_eq!(board.winner(), None);
         board.place_mark(0, PlayerMark::Cross);
-        assert_eq!(board.winner_in_column(0), Some(PlayerMark::Cross));
+        assert_eq!(board.winner(), Some(PlayerMark::Cross));
     }
     #[test]
     fn test_winner_in_row() {
@@ -245,7 +289,8 @@ mod tests {
         board.place_mark(1, PlayerMark::Cross);
         board.place_mark(2, PlayerMark::Cross);
         board.place_mark(3, PlayerMark::Cross);
-        assert_eq!(board.winner_in_row(0), Some(PlayerMark::Cross));
+        assert_eq!(board.winner(), Some(PlayerMark::Cross));
+        assert_eq!(C4Board::raw_winner_in_row(&board.board,0), Some(PlayerMark::Cross));
     }
     #[test]
     fn parse_board() {
@@ -256,7 +301,7 @@ mod tests {
         ...x...
         ..x....
         .x.....
-        x......
+        xooo.o.
         "
         );
         assert_eq!(board.board[0][1], None);
@@ -274,20 +319,26 @@ mod tests {
         .......
         ...x...
         ..x....
-        .x.....
-        x......
+        oxo....
+        xoo....
         "
         );
-        assert_eq!(board.winner_in_slash_diagonal(3), None);
-        assert_eq!(board.winner_in_slash_diagonal(4), None);
-        assert_eq!(board.winner_in_slash_diagonal(5), Some(PlayerMark::Cross));
-        assert_eq!(board.winner_in_slash_diagonal(6), None);
-        assert_eq!(board.winner_in_slash_diagonal(7), None);
-        assert_eq!(board.winner_in_slash_diagonal(8), None);
+        assert_eq!(C4Board::raw_winner_in_slash_diagonal(&board.board,0), None);
+        assert_eq!(C4Board::raw_winner_in_slash_diagonal(&board.board,1), None);
+        assert_eq!(C4Board::raw_winner_in_slash_diagonal(&board.board,2), None);
+        assert_eq!(C4Board::raw_winner_in_slash_diagonal(&board.board,3), None);
+        assert_eq!(C4Board::raw_winner_in_slash_diagonal(&board.board,4), None);
+        assert_eq!(C4Board::raw_winner_in_slash_diagonal(&board.board,5), Some(PlayerMark::Cross));
+        assert_eq!(C4Board::raw_winner_in_slash_diagonal(&board.board,6), None);
+        assert_eq!(C4Board::raw_winner_in_slash_diagonal(&board.board,7), None);
+        assert_eq!(C4Board::raw_winner_in_slash_diagonal(&board.board,8), None);
+        assert_eq!(C4Board::raw_winner_in_slash_diagonal(&board.board,9), None);
+        assert_eq!(C4Board::raw_winner_in_slash_diagonal(&board.board,10), None);
+        assert_eq!(C4Board::raw_winner_in_slash_diagonal(&board.board,11), None);
     }
     #[test]
     fn test_realizes_game_over() {
-        let board = parse_c4board!(
+        let board: C4Board = parse_c4board!(
             "
         .......
         .......
@@ -297,7 +348,7 @@ mod tests {
         xoxxo.."
         );
         assert_eq!(
-            board.winner_in_backslash_diagonal(4),
+            C4Board::raw_winner_in_backslash_diagonal(&board.board,4),
             Some(PlayerMark::Naught)
         );
         assert_eq!(board.winner(), Some(PlayerMark::Naught));

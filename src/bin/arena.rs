@@ -98,8 +98,10 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn print_out_report(outfile: &PathBuf, game_to_report: GameType) -> anyhow::Result<()> {
-    let mut n_wins = [[0.0; cardinality::<PlayerSpec>()]; cardinality::<PlayerSpec>()];
     let mut n_games = [[0.0; cardinality::<PlayerSpec>()]; cardinality::<PlayerSpec>()];
+    let mut n_wins = [[0.0; cardinality::<PlayerSpec>()]; cardinality::<PlayerSpec>()];
+    let mut n_draws = [[0.0; cardinality::<PlayerSpec>()]; cardinality::<PlayerSpec>()];
+    let mut n_losses = [[0.0; cardinality::<PlayerSpec>()]; cardinality::<PlayerSpec>()];
 
     // Iterate the lines in the file, and for each line, update the n_wins and n_games
     let file = std::fs::File::open(outfile).expect(&format!(
@@ -121,25 +123,31 @@ fn print_out_report(outfile: &PathBuf, game_to_report: GameType) -> anyhow::Resu
         let p1num = player1 as usize;
         let p2num = player2 as usize;
         n_games[p1num][p2num] += 1.0;
-        n_games[p2num][p1num] += 1.0;
         match result {
             GameEndStatus::Draw => {
+                n_draws[p1num][p2num] += 1.0
             }
             GameEndStatus::O => {
                 n_wins[p1num][p2num] += 1.0;
             }
             GameEndStatus::X => {
-                n_wins[p2num][p1num] += 1.0;
+                n_losses[p1num][p2num] += 1.0;
             }
         }
     }
-    print_result_matrix(n_wins, n_games);
+    print_result_matrix(n_games, n_wins, n_draws, n_losses);
     Ok(())
 }
 
-/// Print the result matrices
-fn print_result_matrix<const N: usize>(n_wins: [[f64; N]; N], n_games: [[f64; N]; N]) {
-    println!("Win percentages:");
+/// Print the result matrix
+fn print_result_matrix<const N: usize>(
+    n_games: [[f64; N]; N],
+    n_wins: [[f64; N]; N],
+    n_draws: [[f64; N]; N],
+    n_losses: [[f64; N]; N],
+) {
+    println!("Wins/draws/losses");
+    println!("Row=player1, Column=player2");
     print!("{:>10}  ", "");
     let player_labels: Vec<String> = all::<PlayerSpec>()
         .map(|x| {
@@ -150,7 +158,7 @@ fn print_result_matrix<const N: usize>(n_wins: [[f64; N]; N], n_games: [[f64; N]
                 .strip_suffix("\"")
                 .unwrap()
                 .chars()
-                .take(6)
+                .take(8)
                 .collect()
         })
         .collect::<Vec<_>>();
@@ -164,16 +172,7 @@ fn print_result_matrix<const N: usize>(n_wins: [[f64; N]; N], n_games: [[f64; N]
     for i in 0..N {
         print!("{:>10}  ", player_labels[i]);
         for j in 0..N {
-            let winrate = if n_games[i][j] == 0.0 {
-                "nil".into()
-            } else {
-                format!(
-                    "{:3.0}% ({:.0})",
-                    100.0 * n_wins[i][j] / n_games[i][j],
-                    n_games[i][j]
-                )
-            };
-            print!("{:>10}  ", winrate);
+            print!("  {:2}/{:2}/{:2}  ", n_wins[i][j], n_draws[i][j], n_losses[i][j]);
         }
         println!();
     }
