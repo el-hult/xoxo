@@ -19,10 +19,10 @@ pub fn ttt_heuristic(my_marker: PlayerMark, b: &TTTBoard) -> f64 {
     }
 }
 /// A variant of the heurstic of Powell and Merrill for Ultimate Tic-Tac-Toe
-/// Mentioned in the thread https://boardgames.stackexchange.com/questions/49291/strategy-for-ultimate-tic-tac-toe
+/// Mentioned in the thread <https://boardgames.stackexchange.com/questions/49291/strategy-for-ultimate-tic-tac-toe>
 /// two papers on the topic are referred to:
-/// https://www.cs.huji.ac.il/%7Eai/projects/2013/UlitmateTic-Tac-Toe/files/report.pdf
-/// http://smpowell.com/wp-content/uploads/2021/07/Powell_Merrill_FinalPaper.pdf
+/// <https://www.cs.huji.ac.il/%7Eai/projects/2013/UlitmateTic-Tac-Toe/files/report.pdf>
+/// <http://smpowell.com/wp-content/uploads/2021/07/Powell_Merrill_FinalPaper.pdf>
 ///
 pub fn uttt_heuristic(my_marker: PlayerMark, b: &UTTTBoard) -> f64 {
     let n_moves_made: f64 = b.n_moves_made() as f64;
