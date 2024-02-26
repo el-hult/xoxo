@@ -1,5 +1,6 @@
 use clap::{Parser, ValueEnum};
 use rand::{rngs::StdRng, Rng as _, SeedableRng as _};
+use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::hash::Hash;
 use xoxo::{
@@ -71,9 +72,10 @@ fn make_player<T>(
     heuristic: HeuristicFn<T>,
 ) -> Box<dyn Player<T>>
 where
-    T: Board + Clone + Hash + Eq + Debug + 'static,
+    T: Board + Clone + Hash + Eq + Debug + 'static + Serialize + for <'de> Deserialize<'de>,
     ConsolePlayer: Player<T>,
     <T as Board>::Coordinate: Ord + Hash + Debug,
+    for<'de> <T as Board>::Coordinate: Deserialize<'de> + Serialize
 {
     match player_type {
         PlayerType::Console => Box::new(ConsolePlayer::new(marker)),

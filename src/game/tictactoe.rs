@@ -7,7 +7,7 @@ use crate::core::{Board, PlayerMark};
 ///  7 8 9
 ///
 /// invariant: the number inside must be 1-9
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Ord, PartialOrd)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Ord, PartialOrd, serde::Serialize, serde::Deserialize)]
 pub struct TTTAddr(pub usize);
 
 impl std::fmt::Display for TTTAddr {
@@ -20,7 +20,7 @@ impl std::fmt::Display for TTTAddr {
 /// The second member is the victory counters. +1 for naughts. -1 for crosses.
 /// Someone wins on a +3 or -3.
 /// It holds 8 numbers: 3 rows (top to bottom), 3 columns (left to rifht) and two diagonals (first the one that points to southeast, and the the one to northeast)
-#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, PartialOrd, Ord, Default)]
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, PartialOrd, Ord, Default, serde::Serialize, serde::Deserialize)]
 pub struct TTTBoard([Option<PlayerMark>; 9], [i32; 8]);
 
 impl Board for TTTBoard {

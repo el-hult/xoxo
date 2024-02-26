@@ -9,6 +9,7 @@ use rand::prelude::SliceRandom;
 use rand::rngs::StdRng;
 use rand::seq::IteratorRandom as _;
 use rand::SeedableRng;
+use serde::{Deserialize,Serialize};
 
 use std::hash::Hash;
 use std::time::Duration;
@@ -17,8 +18,8 @@ use std::{collections::HashMap, fmt::Debug};
 use crate::core::{BlitzPlayer, Board, GameStatus, GameType, Player};
 
 pub trait Mdp {
-    type Action: Clone + Debug + PartialEq + Eq + Hash + Ord;
-    type State: Sized + Debug + Clone + PartialEq + Eq + Hash;
+    type Action: Clone + Debug + PartialEq + Eq + Hash + Ord + Serialize + for<'de>  serde::Deserialize<'de>;
+    type State: Sized + Debug + Clone + PartialEq + Eq + Hash + Serialize + for<'de>  serde::Deserialize<'de>;
     const DISCOUNT_FACTOR: f64; // 1= no discount, 0=only immediate reward
     fn act(s: Self::State, action: &Self::Action) -> (Self::State, f64); // This is sampling from the Sutton&Barto's p(s',r|s,a), equation 3.2
     fn is_terminal(s: &Self::State) -> bool;
@@ -41,7 +42,7 @@ pub trait Mdp {
 pub(crate) fn mcts_step<M: Mdp>(
     state: &M::State,
     c: f64,
-    qmap: &mut QMap<M>,
+    qmap: &mut QMap<M::State,M::Action>,
     rng: &mut StdRng,
 ) -> f64 {
     if M::is_terminal(state) {
@@ -64,23 +65,32 @@ pub(crate) fn mcts_step<M: Mdp>(
     g_return
 }
 
-pub(crate) struct QMap<M:Mdp> {
-    data: HashMap<(<M as Mdp>::State, <M as Mdp>::Action), (f64, f64)>
+#[derive(Serialize,Deserialize)]
+pub(crate) struct QMap<S,A>
+where
+    S: Hash + Eq,
+    A: Hash + Eq,
+{
+    data: HashMap<(S, A), (f64, f64)>
 }
 
-impl<M:Mdp> QMap<M> {
+impl<S,A> QMap<S,A> 
+where
+    S: Hash + Eq,
+    A: Hash + Eq,
+{
     pub fn new() -> Self {
         QMap {
             data: HashMap::new()
         }
     }
-    pub fn get(&self, key: &(<M as Mdp>::State, <M as Mdp>::Action)) -> Option<&(f64, f64)> {
+    pub fn get(&self, key: &(S, A)) -> Option<&(f64, f64)> {
         self.data.get(key)
     }
-    pub fn insert(&mut self, key: (<M as Mdp>::State, <M as Mdp>::Action), value: (f64, f64)) {
+    pub fn insert(&mut self, key: (S, A), value: (f64, f64)) {
         self.data.insert(key, value);
     }
-    pub fn n_state_visits(&self, state: &<M as Mdp>::State) -> f64 {
+    pub fn n_state_visits(&self, state: &S) -> f64 {
         self.data.iter().filter(|((s, _), _)| s == state).map(|(_, (_, v))| v).sum()
     }
 }
@@ -88,7 +98,7 @@ impl<M:Mdp> QMap<M> {
 pub(crate) fn best_action<M: Mdp>(
     state: &M::State,
     c: f64,
-    qmap: &QMap<M>,
+    qmap: &QMap<M::State, M::Action>,
     rng: &mut StdRng,
 ) -> M::Action {
     let allowed_actions = M::allowed_actions(state);
@@ -112,7 +122,7 @@ pub(crate) fn best_action<M: Mdp>(
 pub(crate) fn run_train_steps<M: Mdp>(
     b: &M::State,
     c: f64,
-    qmap: &mut QMap<M>,
+    qmap: &mut QMap<M::State,M::Action>,
     rng: &mut StdRng,
     n_rounds: usize,
 ) {
@@ -138,9 +148,9 @@ mod test {
     use super::*;
     use rand::{thread_rng, Rng, SeedableRng};
 
-    #[derive(Debug, Clone, PartialEq, Hash, Eq)]
+    #[derive(Debug, Clone, PartialEq, Hash, Eq, Serialize, Deserialize)]
     struct CountGameState(Vec<i8>);
-    #[derive(Clone, Debug, PartialEq, Copy, Hash, Eq, Ord, PartialOrd)]
+    #[derive(Clone, Debug, PartialEq, Copy, Hash, Eq, Ord, PartialOrd, Serialize, Deserialize)]
     enum CountGameAction {
         Add,
         Sub,
@@ -217,17 +227,38 @@ mod test {
 }
 
 pub struct MctsAi<T: Mdp> {
-    qmap: QMap<T>,
+    qmap: QMap<T::State,T::Action>,
     rng: StdRng,
     c: f64,
     moves_taken: u32,
 }
 
+impl<M: Mdp> Drop for MctsAi<M> {
+    fn drop(&mut self) {
+        if let Ok(fd) = std::fs::File::create("mcts_mem.bincode") {
+            match bincode::serialize_into(fd,&self.qmap) {
+                Ok(_) => {},
+                Err(e) => {
+                    panic!("Failed to serialize the qmap: {}", e);
+                }
+            }
+        } else{
+            panic!("Failed to open the file for serializing the qmap.");
+        }
+    }
+}
+
 impl<T: Mdp> MctsAi<T> {
     /// seed is for the RNG, c is the exploration constant in the UCB1 formula
     pub fn new(seed: u64, c: f64) -> Self {
+        let mut qmap: QMap<T::State, T::Action>  = QMap::<T::State, T::Action>::new();
+        if let Ok(fd) = std::fs::File::open("mcts_mem.bincode") {
+            if let Ok(a) = bincode::deserialize_from(fd) {
+                qmap = a;
+            }
+        }
         MctsAi {
-            qmap: QMap::<T>::new(),
+            qmap,
             rng: StdRng::seed_from_u64(seed),
             c,
             moves_taken: 0,
@@ -292,8 +323,8 @@ pub fn get_c(game: GameType) -> f64 {
 
 impl<B: Board> Mdp for B
 where
-    B::Coordinate: Ord + Hash + Debug,
-    B: Hash + Eq + Clone + Debug,
+    B::Coordinate: Ord + Hash + Debug + for<'de> serde::Deserialize<'de> + Serialize,
+    B: Hash + Eq + Clone + Debug + for<'de> serde::Deserialize<'de> + Serialize,
 {
     type Action = B::Coordinate;
 

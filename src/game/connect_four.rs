@@ -15,7 +15,7 @@ type RawBoard = [[Option<PlayerMark>; 6]; 7];
 /// [0][1]   [1][1]   [2][1]   [3][1]   [4][1]   [5][1]   [6][1]
 /// [0][0]   [1][0]   [2][0]   [3][0]   [4][0]   [5][0]   [6][0]
 ///
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord, Default, serde::Serialize, serde::Deserialize)]
 pub struct C4Board {
     /// 7 columns, 6 rows. N.B. it is column major
     board: RawBoard,

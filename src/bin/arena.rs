@@ -98,16 +98,13 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn print_out_report(outfile: &PathBuf, game_to_report: GameType) -> anyhow::Result<()> {
-    let mut n_games = [[0.0; cardinality::<PlayerSpec>()]; cardinality::<PlayerSpec>()];
     let mut n_wins = [[0.0; cardinality::<PlayerSpec>()]; cardinality::<PlayerSpec>()];
     let mut n_draws = [[0.0; cardinality::<PlayerSpec>()]; cardinality::<PlayerSpec>()];
     let mut n_losses = [[0.0; cardinality::<PlayerSpec>()]; cardinality::<PlayerSpec>()];
 
     // Iterate the lines in the file, and for each line, update the n_wins and n_games
-    let file = std::fs::File::open(outfile).expect(&format!(
-        "The report file {} does not exist",
-        outfile.to_str().unwrap()
-    ));
+    let file = std::fs::File::open(outfile).map_err(|e| anyhow::anyhow!(
+        format!("Failed to open the file {:?} for reading scores. {}", outfile, e)))?;
     let mut rdr = csv::Reader::from_reader(file);
     for line in rdr.deserialize() {
         let GameRecord {
@@ -122,7 +119,6 @@ fn print_out_report(outfile: &PathBuf, game_to_report: GameType) -> anyhow::Resu
         }
         let p1num = player1 as usize;
         let p2num = player2 as usize;
-        n_games[p1num][p2num] += 1.0;
         match result {
             GameEndStatus::Draw => {
                 n_draws[p1num][p2num] += 1.0
@@ -135,13 +131,12 @@ fn print_out_report(outfile: &PathBuf, game_to_report: GameType) -> anyhow::Resu
             }
         }
     }
-    print_result_matrix(n_games, n_wins, n_draws, n_losses);
+    print_result_matrix(n_wins, n_draws, n_losses);
     Ok(())
 }
 
 /// Print the result matrix
 fn print_result_matrix<const N: usize>(
-    n_games: [[f64; N]; N],
     n_wins: [[f64; N]; N],
     n_draws: [[f64; N]; N],
     n_losses: [[f64; N]; N],

@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::core::{Board, GameStatus, PlayerMark};
 
-#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, serde::Serialize, serde::Deserialize)]
 pub struct UTTTBoard {
     /// The board is a 3x3 grid of 3x3 grids
     /// board[i][j] is the sub-board at position (i, j)
@@ -164,7 +164,7 @@ impl UTTTBoard {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct Action {
     board: (usize, usize),
     position: (usize, usize),

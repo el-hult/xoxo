@@ -2,7 +2,7 @@
 //!
 
 use serde::{Deserialize, Serialize};
-use std::fmt::Display;
+use std::{fmt::Display, hash::Hash};
 
 use clap::ValueEnum;
 
@@ -39,8 +39,8 @@ pub trait BlitzPlayer<B: Board> {
 
 pub type HeuristicFn<B> = fn(PlayerMark, &B) -> f64;
 
-pub trait Board: Display + Default {
-    type Coordinate: Display + Copy;
+pub trait Board: Display + Default + Hash + Eq {
+    type Coordinate: Display + Copy + Hash + Eq;
     /// The coordinates where you are allowed to place your marker in this turn.
     fn valid_moves(&self) -> Vec<Self::Coordinate>;
     fn place_mark(&mut self, a: Self::Coordinate, marker: PlayerMark);
@@ -51,7 +51,7 @@ pub trait Board: Display + Default {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, Ord, PartialOrd,Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, Ord, PartialOrd,Default, serde::Serialize, serde::Deserialize)]
 pub enum GameStatus {
     #[default]
     Undecided,

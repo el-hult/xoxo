@@ -1,6 +1,7 @@
 set -e
 cargo build --release --bin arena
 rm -f score.csv
+rm -f mcts_mem.bincode
 
 players=("random" "mcts1" "mcts2" "mcts3" "minimax4" "ab6");
 for k in {1..1000}; do
