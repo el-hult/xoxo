@@ -53,6 +53,16 @@ pub trait Mdp {
     }
 }
 
+/// Run one step of the MCTS algorithm
+/// The algorithm is:
+/// 1. Select. Go down the game tree until you find a leaf node. I.e. a node that has not been visited yet.
+///    The selection process is by taking the 'best' child at each node, where 'best' is defined by the UCB1 formula (or some other tree planning algo)
+/// 2. Expand. If the node is new, expand into all its children. This step is kind of funny, because if you don't keep track of all non-taken actions, it is a noop.
+/// 3. Rollout. From a new state, do a random rollout until the end of the game, and return the return.
+/// 4. Backup. All the states visited in the selection process are updated with the return of the rollout. Apply discounting if needed.
+///
+/// N.B. You may accumulate return at every step in the tree.
+/// The "Reward" is called G and is the total reward over all future steps.
 pub(crate) fn mcts_step<M: Mdp>(
     state: &M::State,
     c: f64,
