@@ -13,8 +13,8 @@ use std::path::PathBuf;
 use std::time::Duration;
 use xoxo::{
     core::{BlitzPlayer, Board, GameEndStatus, GameStatus, GameType, PlayerMark},
-    game::connect_four::C4Board,
-    player::{c4_heuristic, ABAi, MctsAi, MinMaxAi, RandomAi},
+    game::{connect_four::C4Board, tictactoe::TTTBoard, ultimate_ttt::UTTTBoard},
+    player::{c4_heuristic, ttt_heuristic, uttt_heuristic, ABAi, MctsAi, MinMaxAi, RandomAi},
 };
 
 #[derive(Parser, Debug)]
@@ -32,7 +32,6 @@ struct Cli {
     command: Commands,
 
     ///Which game to report on
-    #[arg(short, long)]
     game: GameType,
 }
 
@@ -85,7 +84,6 @@ struct GameRecord {
 fn main() -> anyhow::Result<()> {
     let args = Cli::parse();
     let game = args.game;
-    assert_eq!(game, GameType::C4, "Only connect four is supported");
     let log_level = if args.verbose {
         log::Level::Debug
     } else {
@@ -96,7 +94,11 @@ fn main() -> anyhow::Result<()> {
         Commands::Run {
             player1, player2, ..
         } => {
-            let (result, time1, time2) = run_c4(player1, player2);
+            let (result, time1, time2)  = match game {
+                GameType::C4 => run_c4(player1, player2),
+                GameType::Ttt => run_ttt(player1, player2),
+                GameType::Uttt => run_uttt(player1, player2),
+            };
             let record = GameRecord {
                 game,
                 player1,
@@ -208,10 +210,11 @@ fn run_game<B: Board>(
     mut p1: Box<dyn BlitzPlayer<B>>,
     mut p2: Box<dyn BlitzPlayer<B>>,
 ) -> (GameEndStatus, Duration, Duration) {
+    let time0 = std::time::Duration::from_millis(1000);
     let mut current_player = PlayerMark::Naught;
     let mut board = B::default();
-    let mut time_remaining_naughts = std::time::Duration::from_millis(1000);
-    let mut time_remaining_crosses = std::time::Duration::from_millis(1000);
+    let mut time_remaining_naughts = time0.clone();
+    let mut time_remaining_crosses = time0.clone();
     while !board.game_is_over() {
         let t0 = std::time::Instant::now();
         let action = match current_player {
@@ -264,7 +267,7 @@ fn run_game<B: Board>(
     (winstatus, time_remaining_naughts, time_remaining_crosses)
 }
 
-fn make_player(
+fn make_player_c4(
     p: PlayerSpec,
     mark: PlayerMark,
     rng: &mut ThreadRng,
@@ -274,15 +277,58 @@ fn make_player(
         PlayerSpec::Minimax4 => Box::new(MinMaxAi::new(mark, c4_heuristic, 4)),
         PlayerSpec::AB4 => Box::new(ABAi::new(mark, c4_heuristic, 4)),
         PlayerSpec::AB6 => Box::new(ABAi::new(mark, c4_heuristic, 6)),
-        PlayerSpec::MCTS1 => Box::new(MctsAi::<C4Board>::new(rng.gen(), 1.0, Some(format!("mcts1.{}.bincode",mark)))),
-        PlayerSpec::MCTS2 => Box::new(MctsAi::<C4Board>::new(rng.gen(), 2.0, Some(format!("mcts2.{}.bincode",mark)))),
-        PlayerSpec::MCTS3 => Box::new(MctsAi::<C4Board>::new(rng.gen(), 0.5, Some(format!("mcts3.{}.bincode",mark)))),
+        PlayerSpec::MCTS1 => Box::new(MctsAi::<C4Board>::new(rng.gen(), 1.0, Some(format!("mcts1.{}.c4.bincode",mark)))),
+        PlayerSpec::MCTS2 => Box::new(MctsAi::<C4Board>::new(rng.gen(), 2.0, Some(format!("mcts2.{}.c4.bincode",mark)))),
+        PlayerSpec::MCTS3 => Box::new(MctsAi::<C4Board>::new(rng.gen(), 0.5, Some(format!("mcts3.{}.c4.bincode",mark)))),
+    }
+}
+
+fn make_player_ttt(
+    p: PlayerSpec,
+    mark: PlayerMark,
+    rng: &mut ThreadRng,
+) -> Box<dyn BlitzPlayer<TTTBoard>> {
+    match p {
+        PlayerSpec::Random => Box::new(RandomAi::new(rng.gen())),
+        PlayerSpec::Minimax4 => Box::new(MinMaxAi::new(mark, ttt_heuristic, 4)),
+        PlayerSpec::AB4 => Box::new(ABAi::new(mark, ttt_heuristic, 4)),
+        PlayerSpec::AB6 => Box::new(ABAi::new(mark, ttt_heuristic, 6)),
+        PlayerSpec::MCTS1 => Box::new(MctsAi::<TTTBoard>::new(rng.gen(), 1.0, Some(format!("mcts1.{}.ttt.bincode",mark)))),
+        PlayerSpec::MCTS2 => Box::new(MctsAi::<TTTBoard>::new(rng.gen(), 2.0, Some(format!("mcts2.{}.ttt.bincode",mark)))),
+        PlayerSpec::MCTS3 => Box::new(MctsAi::<TTTBoard>::new(rng.gen(), 0.5, Some(format!("mcts3.{}.ttt.bincode",mark)))),
+    }
+}
+fn make_player_uttt(
+    p: PlayerSpec,
+    mark: PlayerMark,
+    rng: &mut ThreadRng,
+) -> Box<dyn BlitzPlayer<UTTTBoard>> {
+    match p {
+        PlayerSpec::Random => Box::new(RandomAi::new(rng.gen())),
+        PlayerSpec::Minimax4 => Box::new(MinMaxAi::new(mark, uttt_heuristic, 4)),
+        PlayerSpec::AB4 => Box::new(ABAi::new(mark, uttt_heuristic, 4)),
+        PlayerSpec::AB6 => Box::new(ABAi::new(mark, uttt_heuristic, 6)),
+        PlayerSpec::MCTS1 => Box::new(MctsAi::<UTTTBoard>::new(rng.gen(), 1.0, Some(format!("mcts1.{}.uttt.bincode",mark)))),
+        PlayerSpec::MCTS2 => Box::new(MctsAi::<UTTTBoard>::new(rng.gen(), 2.0, Some(format!("mcts2.{}.uttt.bincode",mark)))),
+        PlayerSpec::MCTS3 => Box::new(MctsAi::<UTTTBoard>::new(rng.gen(), 0.5, Some(format!("mcts3.{}.uttt.bincode",mark)))),
     }
 }
 
 fn run_c4(player1: PlayerSpec, player2: PlayerSpec) -> (GameEndStatus, Duration, Duration) {
     let mut rng = rand::thread_rng();
-    let p1 = make_player(player1, PlayerMark::Naught, &mut rng);
-    let p2 = make_player(player2, PlayerMark::Cross, &mut rng);
+    let p1 = make_player_c4(player1, PlayerMark::Naught, &mut rng);
+    let p2 = make_player_c4(player2, PlayerMark::Cross, &mut rng);
     run_game::<C4Board>(p1, p2)
+}
+fn run_ttt(player1: PlayerSpec, player2: PlayerSpec) -> (GameEndStatus, Duration, Duration) {
+    let mut rng = rand::thread_rng();
+    let p1 = make_player_ttt(player1, PlayerMark::Naught, &mut rng);
+    let p2 = make_player_ttt(player2, PlayerMark::Cross, &mut rng);
+    run_game::<TTTBoard>(p1, p2)
+}
+fn run_uttt(player1: PlayerSpec, player2: PlayerSpec) -> (GameEndStatus, Duration, Duration) {
+    let mut rng = rand::thread_rng();
+    let p1 = make_player_uttt(player1, PlayerMark::Naught, &mut rng);
+    let p2 = make_player_uttt(player2, PlayerMark::Cross, &mut rng);
+    run_game::<UTTTBoard>(p1, p2)
 }

@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{fmt::Debug, str::FromStr};
 
 use crate::core::{Board, PlayerMark};
 
@@ -22,8 +22,22 @@ impl std::fmt::Display for TTTAddr {
 /// The second member is the victory counters. +1 for naughts. -1 for crosses.
 /// Someone wins on a +3 or -3.
 /// It holds 8 numbers: 3 rows (top to bottom), 3 columns (left to rifht) and two diagonals (first the one that points to southeast, and the the one to northeast)
-#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, PartialOrd, Ord, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Default, serde::Serialize, serde::Deserialize)]
 pub struct TTTBoard([Option<PlayerMark>; 9], [i32; 8]);
+
+impl Debug for TTTBoard {
+    /// write the state as a string of O, X and spaces
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for mark in &self.0 {
+            match mark {
+                None => write!(f, " ")?,
+                Some(PlayerMark::Cross) => write!(f, "X")?,
+                Some(PlayerMark::Naught) => write!(f, "O")?,
+            }
+        }
+        Ok(())
+    }
+}
 
 impl Board for TTTBoard {
     type Coordinate = TTTAddr;

@@ -80,17 +80,17 @@ pub(crate) fn mcts_step<M: Mdp>(
     }
     let best_action = best_action::<M>(state, c, qmap, rng);
     let (new_state, reward) = M::act(state.clone(), &best_action);
-    let state_was_new = qmap.n_state_visits(&new_state) == 0.0;
-    let g_return = if state_was_new {
+    let n_visits_to_new = qmap.n_state_visits(&new_state);
+    // dbg!(state,&new_state,n_visits_to_new);
+    let g_return = if n_visits_to_new == 0.0 {
+        qmap.increment_state_visits(&new_state);
         reward + M::rollout(new_state, rng) * M::DISCOUNT_FACTOR
     } else {
         reward + mcts_step::<M>(&new_state, c, qmap, rng) * M::DISCOUNT_FACTOR
     };
 
     // Update the Q-function
-    let state_action_key = (state.clone(), best_action);
-    let (w, v) = qmap.get(&state_action_key).unwrap_or(&(0.0, 0.0));
-    qmap.insert(state_action_key, (w + g_return, v + 1.0));
+    qmap.add_to_state_action_data((state.clone(),best_action), g_return);
 
     g_return
 }
@@ -101,31 +101,48 @@ where
     S: Hash + Eq,
     A: Hash + Eq,
 {
-    data: HashMap<(S, A), (f64, f64)>,
+    /// map a state-action pair to a tuple of the total regret obtained, and the number of visits to that state
+    state_action_value: HashMap<(S, A), (f64, f64)>,
+    /// at 'expansion' we observe a state, but we don't know the value of the actions from that state, since
+    /// we only did rollout from that state. This map keeps track of the number of visits to each state
+    /// it should always contain one more than if you sum over the second element of the state_action_value
+    /// for each action in the same state
+    state_visits: HashMap<S, f64>,
 }
 
 impl<S, A> QMap<S, A>
 where
-    S: Hash + Eq,
-    A: Hash + Eq,
+    S: Hash + Eq + Clone,
+    A: Hash + Eq + Clone,
 {
     pub fn new() -> Self {
         QMap {
-            data: HashMap::new(),
+            state_action_value: HashMap::new(),
+            state_visits: HashMap::new(),
         }
     }
     pub fn get(&self, key: &(S, A)) -> Option<&(f64, f64)> {
-        self.data.get(key)
+        self.state_action_value.get(key)
     }
-    pub fn insert(&mut self, key: (S, A), value: (f64, f64)) {
-        self.data.insert(key, value);
+    pub fn add_to_state_action_data(&mut self, key:(S,A),g_return: f64) {
+        self.increment_state_visits(&key.0);
+        if let Some((w, v)) = self.state_action_value.get_mut(&key) {
+            *w += g_return;
+            *v += 1.0;
+        } else {
+            self.state_action_value.insert(key, (g_return, 1.0));
+        }
+
     }
     pub fn n_state_visits(&self, state: &S) -> f64 {
-        self.data
-            .iter()
-            .filter(|((s, _), _)| s == state)
-            .map(|(_, (_, v))| v)
-            .sum()
+        *self.state_visits.get(state).unwrap_or(&0.0)
+    }
+    pub fn increment_state_visits(&mut self, state: &S) {
+        if let Some(v) = self.state_visits.get_mut(state) {
+            *v += 1.0;
+        } else {
+            self.state_visits.insert((*state).clone(), 1.0);
+        }
     }
 }
 
@@ -218,7 +235,7 @@ mod test {
         assert_eq!(qmap.n_state_visits(&root), 2.0);
         // check that there are two actions in the qmap associated with the root state
         let visits = qmap
-            .data
+            .state_action_value
             .iter()
             .filter(|((s, _), (_, _))| s == &root)
             .map(|(_, (_, v))| v)
