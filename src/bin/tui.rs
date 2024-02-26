@@ -82,7 +82,7 @@ where
         PlayerType::Random => Box::new(RandomAi::new(rng.gen())),
         PlayerType::Minimax => Box::new(MinMaxAi::<T>::new(marker, heuristic, mm_depth)),
         PlayerType::AlphaBeta => Box::new(ABAi::<T>::new(marker, heuristic, ab_depth)),
-        PlayerType::Mcts => Box::new(MctsAi::<T>::new(rng.gen(), c)),
+        PlayerType::Mcts => Box::new(MctsAi::<T>::new(rng.gen(), c, None)),
     }
 }
 

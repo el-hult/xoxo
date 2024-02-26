@@ -237,30 +237,36 @@ pub struct MctsAi<T: Mdp> {
     rng: StdRng,
     c: f64,
     moves_taken: u32,
+    /// The file into which we save any data that helps this AI across runs
+    mem_path: Option<String>,
 }
 
 impl<M: Mdp> Drop for MctsAi<M> {
     fn drop(&mut self) {
-        if let Ok(fd) = std::fs::File::create("mcts_mem.bincode") {
-            match bincode::serialize_into(fd, &self.qmap) {
-                Ok(_) => {}
-                Err(e) => {
-                    panic!("Failed to serialize the qmap: {}", e);
+        if let Some(ref mem_path) = self.mem_path {
+            if let Ok(fd) = std::fs::File::create(mem_path) {
+                match bincode::serialize_into(fd, &self.qmap) {
+                    Ok(_) => {}
+                    Err(e) => {
+                        panic!("Failed to serialize the qmap: {}", e);
+                    }
                 }
+            } else {
+                panic!("Failed to open the file for serializing the qmap.");
             }
-        } else {
-            panic!("Failed to open the file for serializing the qmap.");
         }
     }
 }
 
 impl<T: Mdp> MctsAi<T> {
     /// seed is for the RNG, c is the exploration constant in the UCB1 formula
-    pub fn new(seed: u64, c: f64) -> Self {
+    pub fn new(seed: u64, c: f64, mem_path: Option<String>) -> Self {
         let mut qmap: QMap<T::State, T::Action> = QMap::<T::State, T::Action>::new();
-        if let Ok(fd) = std::fs::File::open("mcts_mem.bincode") {
-            if let Ok(a) = bincode::deserialize_from(fd) {
-                qmap = a;
+        if let Some(ref mem_path) = mem_path {
+            if let Ok(fd) = std::fs::File::open(mem_path) {
+                if let Ok(a) = bincode::deserialize_from(fd) {
+                    qmap = a;
+                }
             }
         }
         MctsAi {
@@ -268,6 +274,7 @@ impl<T: Mdp> MctsAi<T> {
             rng: StdRng::seed_from_u64(seed),
             c,
             moves_taken: 0,
+            mem_path,
         }
     }
 }
