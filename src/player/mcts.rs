@@ -35,11 +35,17 @@ pub trait Mdp {
         + Serialize
         + for<'de> serde::Deserialize<'de>;
     const DISCOUNT_FACTOR: f64; // 1= no discount, 0=only immediate reward
-    fn act(s: Self::State, action: &Self::Action) -> (Self::State, f64); // This is sampling from the Sutton&Barto's p(s',r|s,a), equation 3.2
+    /// Sample sample from  p(s',r|s,a)
+    /// see Sutton&Barto Equation 3.2
+    /// The return is always as percieved by the actor that takes the action
+    /// In 2 player games, this means that the reward has to be negated if the action is taken by the 'other' player
+    /// One trick is to have a negative discount factor
+    /// This can make life tricky if recording the returns and not keeping track on which player is the current player
+    fn act(s: Self::State, action: &Self::Action) -> (Self::State, f64);
     fn is_terminal(s: &Self::State) -> bool;
     fn allowed_actions(s: &Self::State) -> Vec<Self::Action>;
-    /// If the game branch factor is large, this random strategy is bad, since it will explore very inefficiently
-    /// What better enginges do is to use some heuristic for the Q-function to do the rollout.
+    /// Play randomly until end of game, and return the 'return'
+    /// The return is the sum of all future rewards, discounted by the discount factor
     fn rollout(s: Self::State, rng: &mut StdRng) -> f64 {
         if Self::is_terminal(&s) {
             return 0.0;

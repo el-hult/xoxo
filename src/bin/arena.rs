@@ -263,9 +263,9 @@ fn make_player(
         PlayerSpec::Minimax4 => Box::new(MinMaxAi::new(mark, c4_heuristic, 4)),
         PlayerSpec::AB4 => Box::new(ABAi::new(mark, c4_heuristic, 4)),
         PlayerSpec::AB6 => Box::new(ABAi::new(mark, c4_heuristic, 6)),
-        PlayerSpec::MCTS1 => Box::new(MctsAi::<C4Board>::new(rng.gen(), 1.0, Some("mcts1.bincode".into()))),
-        PlayerSpec::MCTS2 => Box::new(MctsAi::<C4Board>::new(rng.gen(), 2.0, Some("mcts2.bincode".into()))),
-        PlayerSpec::MCTS3 => Box::new(MctsAi::<C4Board>::new(rng.gen(), 0.5, Some("mcts3.bincode".into()))),
+        PlayerSpec::MCTS1 => Box::new(MctsAi::<C4Board>::new(rng.gen(), 1.0, Some(format!("mcts1.{}.bincode",mark)))),
+        PlayerSpec::MCTS2 => Box::new(MctsAi::<C4Board>::new(rng.gen(), 2.0, Some(format!("mcts2.{}.bincode",mark)))),
+        PlayerSpec::MCTS3 => Box::new(MctsAi::<C4Board>::new(rng.gen(), 0.5, Some(format!("mcts3.{}.bincode",mark)))),
     }
 }
 
