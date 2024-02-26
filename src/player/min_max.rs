@@ -89,6 +89,12 @@ impl<B: Board + Clone> Player<B> for MinMaxAi<B> {
     }
 }
 
+impl<M> Drop for MinMaxAi<M> {
+    fn drop(&mut self) {
+        println!("MinMaxAi evaluated {} leafs", self.n_leafs_evaluated);
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::str::FromStr;

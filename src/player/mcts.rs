@@ -15,7 +15,7 @@ use std::hash::Hash;
 use std::time::Duration;
 use std::{collections::HashMap, fmt::Debug};
 
-use crate::core::{BlitzPlayer, Board, GameStatus, GameType, Player};
+use crate::core::{BlitzPlayer, Board, GameStatus, Player};
 
 pub trait Mdp {
     type Action: Clone
@@ -327,14 +327,6 @@ where
     }
 }
 
-pub fn get_c(game: GameType) -> f64 {
-    match game {
-        GameType::Ttt => 1.0,
-        GameType::Uttt => 0.75,
-        GameType::C4 => 1.0,
-    }
-}
-
 impl<B: Board> Mdp for B
 where
     B::Coordinate: Ord + Hash + Debug + for<'de> serde::Deserialize<'de> + Serialize,
@@ -344,7 +336,7 @@ where
 
     type State = B;
 
-    const DISCOUNT_FACTOR: f64 = -1.0;
+    const DISCOUNT_FACTOR: f64 = -0.999;
 
     fn act(mut board: Self::State, action: &Self::Action) -> (Self::State, f64) {
         let player_mark = board.current_player();

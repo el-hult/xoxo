@@ -50,7 +50,11 @@ enum Commands {
 #[derive(Debug, Clone, Copy, ValueEnum, Serialize, Deserialize, Sequence)]
 enum PlayerSpec {
     Random,
+    /// Minimax with depth 4, and alpha-beta pruning
+    AB4,
+    /// Minimax with depth 6, and alpha-beta pruning
     AB6,
+    /// Minimax with depth 4
     Minimax4,
     /// MCTS Ai with c=2 in the UCB1 formula
     MCTS2,
@@ -210,6 +214,7 @@ fn run_game<B: Board>(
                     .checked_sub(t1.duration_since(t0))
                     .unwrap_or(Duration::ZERO);
                 if time_remaining_naughts == Duration::ZERO {
+                    println!("{} ran out of time", PlayerMark::Naught);
                     return (
                         GameEndStatus::X,
                         time_remaining_naughts,
@@ -219,9 +224,10 @@ fn run_game<B: Board>(
             }
             PlayerMark::Cross => {
                 time_remaining_crosses = time_remaining_crosses
-                    .checked_sub(t1.duration_since(t0))
-                    .unwrap_or(Duration::ZERO);
-                if time_remaining_crosses == Duration::ZERO {
+                .checked_sub(t1.duration_since(t0))
+                .unwrap_or(Duration::ZERO);
+            if time_remaining_crosses == Duration::ZERO {
+                    println!("{} ran out of time", PlayerMark::Cross);
                     return (
                         GameEndStatus::O,
                         time_remaining_naughts,
@@ -230,29 +236,21 @@ fn run_game<B: Board>(
                 }
             }
         }
+        println!("Player {} played {}", current_player, &action);
         board.place_mark(action, current_player);
+        println!("{}", board);
         current_player = current_player.other();
     }
-    // dbg!(time_remaining_crosses);
-    // dbg!(time_remaining_naughts);
-    match board.game_status() {
-        GameStatus::Draw => (
-            GameEndStatus::Draw,
-            time_remaining_naughts,
-            time_remaining_crosses,
-        ),
-        GameStatus::Won(PlayerMark::Cross) => (
-            GameEndStatus::X,
-            time_remaining_naughts,
-            time_remaining_crosses,
-        ),
-        GameStatus::Won(PlayerMark::Naught) => (
-            GameEndStatus::O,
-            time_remaining_naughts,
-            time_remaining_crosses,
-        ),
+    println!("Time remaining: {:?} and {:?}", time_remaining_naughts, time_remaining_crosses);
+    println!("Game over");
+    let winstatus = match board.game_status() {
+        GameStatus::Draw => GameEndStatus::Draw,
+        GameStatus::Won(PlayerMark::Cross) => GameEndStatus::X,
+        GameStatus::Won(PlayerMark::Naught) => GameEndStatus::O,
         GameStatus::Undecided => unreachable!(),
-    }
+    };
+    println!("Game ended with {}", winstatus);
+    (winstatus, time_remaining_naughts, time_remaining_crosses)
 }
 
 fn make_player(
@@ -263,6 +261,7 @@ fn make_player(
     match p {
         PlayerSpec::Random => Box::new(RandomAi::new(rng.gen())),
         PlayerSpec::Minimax4 => Box::new(MinMaxAi::new(mark, c4_heuristic, 4)),
+        PlayerSpec::AB4 => Box::new(ABAi::new(mark, c4_heuristic, 4)),
         PlayerSpec::AB6 => Box::new(ABAi::new(mark, c4_heuristic, 6)),
         PlayerSpec::MCTS1 => Box::new(MctsAi::<C4Board>::new(rng.gen(), 1.0, Some("mcts1.bincode".into()))),
         PlayerSpec::MCTS2 => Box::new(MctsAi::<C4Board>::new(rng.gen(), 2.0, Some("mcts2.bincode".into()))),

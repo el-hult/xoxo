@@ -6,12 +6,12 @@ use std::hash::Hash;
 use xoxo::{
     core::{run_game, Board, GameType, HeuristicFn, Player, PlayerMark},
     player::{
-        alpha_beta::ABAi,
+        ABAi,
         c4_heuristic,
-        console::ConsolePlayer,
-        mcts::{get_c, MctsAi},
-        min_max::MinMaxAi,
-        random::RandomAi,
+        ConsolePlayer,
+        MctsAi,
+        MinMaxAi,
+        RandomAi,
         ttt_heuristic, uttt_heuristic,
     },
 };
@@ -43,12 +43,12 @@ struct Args {
 
     /// The depth of the minimax algorithm
     /// Only used for minimax ai, if used
-    #[arg(long, default_value = "3")]
+    #[arg(long, default_value = "4")]
     mm_depth: usize,
 
     /// The depth of the alpha-beta algorithm
     /// Only used for alpha-beta ai, if used
-    #[arg(long, default_value = "7")]
+    #[arg(long, default_value = "6")]
     ab_depth: usize,
 
     /// The seed for the random number generator (when used)
@@ -93,7 +93,11 @@ fn main() {
     let mut rng = StdRng::seed_from_u64(seed);
     let c = match args.c {
         Some(c) => c,
-        None => get_c(args.game),
+        None => match args.game {
+            GameType::Ttt => 1.0,
+            GameType::Uttt => 1.0,
+            GameType::C4 => 0.5,
+        }
     };
     match args.game {
         GameType::Ttt => {

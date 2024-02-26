@@ -13,6 +13,15 @@ pub enum PlayerMark {
     Naught,
 }
 
+impl Display for PlayerMark {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self {
+            Self::Cross => write!(f, "X"),
+            Self::Naught => write!(f, "O"),
+        }
+    }
+}
+
 impl PlayerMark {
     pub fn other(&self) -> Self {
         match *self {
@@ -76,6 +85,16 @@ pub enum GameEndStatus {
     X,
     /// O won
     O,
+}
+
+impl Display for GameEndStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self {
+            Self::Draw => write!(f, "Draw"),
+            Self::X => write!(f, "X won"),
+            Self::O => write!(f, "O won"),
+        }
+    }
 }
 
 pub fn run_game<B: Board>(mut p1: Box<dyn Player<B>>, mut p2: Box<dyn Player<B>>) -> GameEndStatus{

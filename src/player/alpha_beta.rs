@@ -99,6 +99,12 @@ impl<B: Board + Clone> Player<B> for ABAi<B> {
     }
 }
 
+impl<M> Drop for ABAi<M> {
+    fn drop(&mut self) {
+        println!("ABAi evaluated {} leaf nodes", self.n_leafs_evaluated);
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::str::FromStr;

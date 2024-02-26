@@ -85,6 +85,17 @@ pub fn c4_heuristic(my_marker: PlayerMark, b: &C4Board) -> f64 {
         .iter()
         .filter(|&&x| x == Some(my_marker))
         .count() as f64;
+    let three_in_rows = {
+        let mut k = 0;
+        for row in 0..6 {
+            let mut j = 0;
+            for col in 0..4 {
+                if raw_board[col][row] == Some(my_marker) { j += 1; }
+            }
+            if j == 3 { k += 1; }
+        }
+        k as f64
+    };
     let win = match b.winner() {
         Some(mark) => {
             if mark == my_marker {
@@ -95,5 +106,5 @@ pub fn c4_heuristic(my_marker: PlayerMark, b: &C4Board) -> f64 {
         }
         _ => 0.0,
     };
-    100.0 * win + markers_in_col_3 + 2.0 * markers_in_col_4 + markers_in_col_5
+    100.0 * win + markers_in_col_3 + 2.0 * markers_in_col_4 + markers_in_col_5 + 5.0 * three_in_rows
 }
