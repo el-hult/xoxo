@@ -91,6 +91,8 @@ impl<B: Board + Clone> Player<B> for MinMaxAi<B> {
 
 #[cfg(test)]
 mod test {
+    use std::str::FromStr;
+
     use super::*;
     use crate::game::tictactoe::{TTTAddr, TTTBoard};
 
@@ -110,14 +112,14 @@ mod test {
 
     #[test]
     fn can_find_winning_move() {
-        let b = TTTBoard::from_str("   xx    ");
+        let b = TTTBoard::from_str("   xx    ").unwrap();
         let mut ai = MinMaxAi::<TTTBoard>::new(PlayerMark::Cross, ttt_heuristic, 10);
         let action: TTTAddr = ai.play(&b);
         assert_eq!(action, TTTAddr(6))
     }
     #[test]
     fn can_block_winning_move() {
-        let b = TTTBoard::from_str("oo  x    ");
+        let b = TTTBoard::from_str("oo  x    ").unwrap();
         let mut ai = MinMaxAi::<TTTBoard>::new(PlayerMark::Cross, ttt_heuristic, 10);
         let action = ai.play(&b);
         assert_eq!(action, TTTAddr(3))

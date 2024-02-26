@@ -291,7 +291,7 @@ where
         }
         // dbg!(n_steps);
         self.moves_taken += 1;
-        best_action::<T>(b, self.c, &mut self.qmap, &mut self.rng)
+        best_action::<T>(b, self.c, &self.qmap, &mut self.rng)
     }
 }
 

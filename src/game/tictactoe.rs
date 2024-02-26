@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use crate::core::{Board, PlayerMark};
 
 /// Represents a coordinate on the board
@@ -100,21 +102,29 @@ impl TTTBoard {
         }
     }
 
-    #[cfg(test)]
-    pub fn from_str(s: &str) -> Self {
+    pub fn n_moves_made(&self) -> usize {
+        self.0.iter().filter(|&q| q.is_some()).count()
+    }
+}
+
+impl FromStr for TTTBoard {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut b: Self = Self::default();
-        assert!(s.len() == 9);
-        s.chars().enumerate().for_each(|(num, c)| match c {
+        if s.len() != 9 {
+            return Err("Invalid string slice! Must be 9 characters long");
+        }
+        for (num,c) in s.chars().enumerate() {
+            match c {
             'x' => b.place_mark(TTTAddr(num + 1), PlayerMark::Cross),
             'o' => b.place_mark(TTTAddr(num + 1), PlayerMark::Naught),
             ' ' => {}
-            _ => panic!("Invalid string slice! MAy only contain x o or blank space"),
-        });
-        b
-    }
-
-    pub fn n_moves_made(&self) -> usize {
-        self.0.iter().filter(|&q| q.is_some()).count()
+            _ => {
+                return Err("Invalid string slice! May only contain x o or blank space");
+            }
+        }}
+        Ok(b)
     }
 }
 

@@ -148,9 +148,9 @@ fn print_result_matrix<const N: usize>(
         .map(|x| {
             serde_json::to_string(&x)
                 .expect("This serialization should not fail")
-                .strip_prefix("\"")
+                .strip_prefix('\"')
                 .unwrap()
-                .strip_suffix("\"")
+                .strip_suffix('\"')
                 .unwrap()
                 .chars()
                 .take(8)

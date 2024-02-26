@@ -116,14 +116,14 @@ impl C4Board {
             .filter(|x| **x == Some(PlayerMark::Cross))
             .count();
         let n_naughts = game_board.iter().flatten().filter(|x| **x == Some(PlayerMark::Naught)).count();
-        let next_player = if n_crosses == n_naughts {
+        
+        if n_crosses == n_naughts {
                 PlayerMark::Naught 
             } else if n_naughts == n_crosses+1{ 
                 PlayerMark::Cross 
             } else {
                 panic!("The number of x vs o is not valid for a game of connect four")
-            };
-        next_player
+            }
     }
     #[cfg(test)]
     fn raw_game_status(board : RawBoard) -> GameStatus {
