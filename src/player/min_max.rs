@@ -1,3 +1,5 @@
+use log::debug;
+
 use crate::core::{BlitzPlayer, Board, HeuristicFn, Player, PlayerMark};
 
 pub struct MinMaxAi<B> {
@@ -91,7 +93,7 @@ impl<B: Board + Clone> Player<B> for MinMaxAi<B> {
 
 impl<M> Drop for MinMaxAi<M> {
     fn drop(&mut self) {
-        println!("MinMaxAi evaluated {} leafs", self.n_leafs_evaluated);
+        debug!("MinMaxAi evaluated {} leafs", self.n_leafs_evaluated);
     }
 }
 

@@ -4,6 +4,7 @@
 
 use clap::{Parser, Subcommand, ValueEnum};
 use enum_iterator::{all, cardinality, Sequence};
+use log::debug;
 use rand::rngs::ThreadRng;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -19,9 +20,13 @@ use xoxo::{
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Cli {
-    /// Sets a custom config file
+    /// Sets a custom score keeping file
     #[arg(short, long, default_value = "score.csv")]
     outfile: PathBuf,
+
+    /// Print out information about what the program is doing
+    #[arg(long,short, action)]
+    verbose: bool,
 
     #[command(subcommand)]
     command: Commands,
@@ -81,6 +86,12 @@ fn main() -> anyhow::Result<()> {
     let args = Cli::parse();
     let game = args.game;
     assert_eq!(game, GameType::C4, "Only connect four is supported");
+    let log_level = if args.verbose {
+        log::Level::Debug
+    } else {
+        log::Level::Info
+    };
+    simple_logger::init_with_level(log_level).unwrap();
     match args.command {
         Commands::Run {
             player1, player2, ..
@@ -171,7 +182,7 @@ fn print_result_matrix<const N: usize>(
     for i in 0..N {
         print!("{:>10}  ", player_labels[i]);
         for j in 0..N {
-            print!("  {:2}/{:2}/{:2}  ", n_wins[i][j], n_draws[i][j], n_losses[i][j]);
+            print!("{:3}/{:2}/{:3}  ", n_wins[i][j], n_draws[i][j], n_losses[i][j]);
         }
         println!();
     }
@@ -214,7 +225,7 @@ fn run_game<B: Board>(
                     .checked_sub(t1.duration_since(t0))
                     .unwrap_or(Duration::ZERO);
                 if time_remaining_naughts == Duration::ZERO {
-                    println!("{} ran out of time", PlayerMark::Naught);
+                    debug!("{} ran out of time", PlayerMark::Naught);
                     return (
                         GameEndStatus::X,
                         time_remaining_naughts,
@@ -227,7 +238,7 @@ fn run_game<B: Board>(
                 .checked_sub(t1.duration_since(t0))
                 .unwrap_or(Duration::ZERO);
             if time_remaining_crosses == Duration::ZERO {
-                    println!("{} ran out of time", PlayerMark::Cross);
+                    debug!("{} ran out of time", PlayerMark::Cross);
                     return (
                         GameEndStatus::O,
                         time_remaining_naughts,
@@ -236,20 +247,20 @@ fn run_game<B: Board>(
                 }
             }
         }
-        println!("Player {} played {}", current_player, &action);
+        debug!("Player {} played {}", current_player, &action);
         board.place_mark(action, current_player);
-        println!("{}", board);
+        debug!("\n{}", board);
         current_player = current_player.other();
     }
-    println!("Time remaining: {:?} and {:?}", time_remaining_naughts, time_remaining_crosses);
-    println!("Game over");
+    debug!("Time remaining: {:?} and {:?}", time_remaining_naughts, time_remaining_crosses);
+    debug!("Game over");
     let winstatus = match board.game_status() {
         GameStatus::Draw => GameEndStatus::Draw,
         GameStatus::Won(PlayerMark::Cross) => GameEndStatus::X,
         GameStatus::Won(PlayerMark::Naught) => GameEndStatus::O,
         GameStatus::Undecided => unreachable!(),
     };
-    println!("Game ended with {}", winstatus);
+    debug!("Game ended with {}", winstatus);
     (winstatus, time_remaining_naughts, time_remaining_crosses)
 }
 

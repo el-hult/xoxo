@@ -1,3 +1,5 @@
+use log::debug;
+
 use crate::core::{BlitzPlayer, Board, HeuristicFn, Player, PlayerMark};
 
 pub struct ABAi<B> {
@@ -101,7 +103,7 @@ impl<B: Board + Clone> Player<B> for ABAi<B> {
 
 impl<M> Drop for ABAi<M> {
     fn drop(&mut self) {
-        println!("ABAi evaluated {} leaf nodes", self.n_leafs_evaluated);
+        debug!("ABAi evaluated {} leaf nodes", self.n_leafs_evaluated);
     }
 }
 

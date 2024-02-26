@@ -1,9 +1,10 @@
 set -e
 cargo build --release --bin arena
-rm -f score.csv
-rm -f mcts_mem.bincode
+# rm -f score.csv
+# rm -f *.bincode
+# players=("random" "mcts1" "mcts2" "mcts3" "minimax4" "ab6");
 
-players=("random" "mcts1" "mcts2" "mcts3" "minimax4" "ab6");
+players=("mcts1" "mcts3" "ab6");
 for k in {1..1000}; do
     i=$((RANDOM % ${#players[@]}))
     j=$((RANDOM % ${#players[@]}))
