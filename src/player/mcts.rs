@@ -119,18 +119,6 @@ pub(crate) fn best_action<M: Mdp>(
     best_action
 }
 
-pub(crate) fn run_train_steps<M: Mdp>(
-    b: &M::State,
-    c: f64,
-    qmap: &mut QMap<M::State,M::Action>,
-    rng: &mut StdRng,
-    n_rounds: usize,
-) {
-    for _ in 0..n_rounds {
-        mcts_step::<M>(b, c, qmap, rng);
-    }
-}
-
 /// The UCB1 formula,
 /// the constant c needs to be passed in.
 /// by default, c=2.0 is often used
@@ -295,13 +283,9 @@ where
     B: Board,
 {
     fn play(&mut self, b: &B) -> B::Coordinate {
-        run_train_steps::<T>(
-            b,
-            self.c,
-            &mut self.qmap,
-            &mut self.rng,
-            10000,
-        );
+        for _ in 0..10000 {
+            mcts_step::<T>(b, self.c, &mut self.qmap, &mut self.rng);
+        }
         let a = best_action::<T>(
             b,
             self.c,
