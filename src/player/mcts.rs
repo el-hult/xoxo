@@ -9,7 +9,7 @@ use rand::prelude::SliceRandom;
 use rand::rngs::StdRng;
 use rand::seq::IteratorRandom as _;
 use rand::SeedableRng;
-use serde::{Deserialize,Serialize};
+use serde::{Deserialize, Serialize};
 
 use std::hash::Hash;
 use std::time::Duration;
@@ -18,8 +18,22 @@ use std::{collections::HashMap, fmt::Debug};
 use crate::core::{BlitzPlayer, Board, GameStatus, GameType, Player};
 
 pub trait Mdp {
-    type Action: Clone + Debug + PartialEq + Eq + Hash + Ord + Serialize + for<'de>  serde::Deserialize<'de>;
-    type State: Sized + Debug + Clone + PartialEq + Eq + Hash + Serialize + for<'de>  serde::Deserialize<'de>;
+    type Action: Clone
+        + Debug
+        + PartialEq
+        + Eq
+        + Hash
+        + Ord
+        + Serialize
+        + for<'de> serde::Deserialize<'de>;
+    type State: Sized
+        + Debug
+        + Clone
+        + PartialEq
+        + Eq
+        + Hash
+        + Serialize
+        + for<'de> serde::Deserialize<'de>;
     const DISCOUNT_FACTOR: f64; // 1= no discount, 0=only immediate reward
     fn act(s: Self::State, action: &Self::Action) -> (Self::State, f64); // This is sampling from the Sutton&Barto's p(s',r|s,a), equation 3.2
     fn is_terminal(s: &Self::State) -> bool;
@@ -42,13 +56,13 @@ pub trait Mdp {
 pub(crate) fn mcts_step<M: Mdp>(
     state: &M::State,
     c: f64,
-    qmap: &mut QMap<M::State,M::Action>,
+    qmap: &mut QMap<M::State, M::Action>,
     rng: &mut StdRng,
 ) -> f64 {
     if M::is_terminal(state) {
         return 0.0;
     }
-    let best_action = best_action::<M>(state, c, qmap,  rng);
+    let best_action = best_action::<M>(state, c, qmap, rng);
     let (new_state, reward) = M::act(state.clone(), &best_action);
     let state_was_new = qmap.n_state_visits(&new_state) == 0.0;
     let g_return = if state_was_new {
@@ -65,23 +79,23 @@ pub(crate) fn mcts_step<M: Mdp>(
     g_return
 }
 
-#[derive(Serialize,Deserialize)]
-pub(crate) struct QMap<S,A>
+#[derive(Serialize, Deserialize)]
+pub(crate) struct QMap<S, A>
 where
     S: Hash + Eq,
     A: Hash + Eq,
 {
-    data: HashMap<(S, A), (f64, f64)>
+    data: HashMap<(S, A), (f64, f64)>,
 }
 
-impl<S,A> QMap<S,A> 
+impl<S, A> QMap<S, A>
 where
     S: Hash + Eq,
     A: Hash + Eq,
 {
     pub fn new() -> Self {
         QMap {
-            data: HashMap::new()
+            data: HashMap::new(),
         }
     }
     pub fn get(&self, key: &(S, A)) -> Option<&(f64, f64)> {
@@ -91,7 +105,11 @@ where
         self.data.insert(key, value);
     }
     pub fn n_state_visits(&self, state: &S) -> f64 {
-        self.data.iter().filter(|((s, _), _)| s == state).map(|(_, (_, v))| v).sum()
+        self.data
+            .iter()
+            .filter(|((s, _), _)| s == state)
+            .map(|(_, (_, v))| v)
+            .sum()
     }
 }
 
@@ -177,13 +195,14 @@ mod test {
         let mut qmap = QMap::new();
         let mut rng = StdRng::from_entropy();
         let c = 0.75;
-        mcts_step::<CountGameMDP>(&root, c,&mut qmap,  &mut rng);
-        mcts_step::<CountGameMDP>(&root, c,&mut qmap,  &mut rng);
+        mcts_step::<CountGameMDP>(&root, c, &mut qmap, &mut rng);
+        mcts_step::<CountGameMDP>(&root, c, &mut qmap, &mut rng);
         // The root state should have been visited twice
         assert!(qmap.n_state_visits(&root) > 0.0);
-        assert_eq!(qmap.n_state_visits(&root) ,2.0);
+        assert_eq!(qmap.n_state_visits(&root), 2.0);
         // check that there are two actions in the qmap associated with the root state
-        let visits = qmap.data
+        let visits = qmap
+            .data
             .iter()
             .filter(|((s, _), (_, _))| s == &root)
             .map(|(_, (_, v))| v)
@@ -202,10 +221,9 @@ mod test {
         let mut rng = StdRng::from_entropy();
         let c = 0.75;
         for _ in 0..10000 {
-            mcts_step::<CountGameMDP>(&root, c, &mut qmap,&mut rng);
+            mcts_step::<CountGameMDP>(&root, c, &mut qmap, &mut rng);
         }
-        let best_move =
-            best_action::<CountGameMDP>(&root, c, &qmap, &mut rng);
+        let best_move = best_action::<CountGameMDP>(&root, c, &qmap, &mut rng);
         assert_eq!(
             best_move,
             CountGameAction::Add,
@@ -215,7 +233,7 @@ mod test {
 }
 
 pub struct MctsAi<T: Mdp> {
-    qmap: QMap<T::State,T::Action>,
+    qmap: QMap<T::State, T::Action>,
     rng: StdRng,
     c: f64,
     moves_taken: u32,
@@ -224,13 +242,13 @@ pub struct MctsAi<T: Mdp> {
 impl<M: Mdp> Drop for MctsAi<M> {
     fn drop(&mut self) {
         if let Ok(fd) = std::fs::File::create("mcts_mem.bincode") {
-            match bincode::serialize_into(fd,&self.qmap) {
-                Ok(_) => {},
+            match bincode::serialize_into(fd, &self.qmap) {
+                Ok(_) => {}
                 Err(e) => {
                     panic!("Failed to serialize the qmap: {}", e);
                 }
             }
-        } else{
+        } else {
             panic!("Failed to open the file for serializing the qmap.");
         }
     }
@@ -239,7 +257,7 @@ impl<M: Mdp> Drop for MctsAi<M> {
 impl<T: Mdp> MctsAi<T> {
     /// seed is for the RNG, c is the exploration constant in the UCB1 formula
     pub fn new(seed: u64, c: f64) -> Self {
-        let mut qmap: QMap<T::State, T::Action>  = QMap::<T::State, T::Action>::new();
+        let mut qmap: QMap<T::State, T::Action> = QMap::<T::State, T::Action>::new();
         if let Ok(fd) = std::fs::File::open("mcts_mem.bincode") {
             if let Ok(a) = bincode::deserialize_from(fd) {
                 qmap = a;
@@ -261,19 +279,19 @@ where
 {
     fn blitz(&mut self, b: &B, _time_remaining: std::time::Duration) -> <B as Board>::Coordinate {
         let t0 = std::time::Instant::now();
-        let mut n_steps  = 0;
+        let mut n_steps = 0;
 
         loop {
             mcts_step::<T>(b, self.c, &mut self.qmap, &mut self.rng);
             n_steps += 1;
-            let duration_per_step = t0.elapsed()/n_steps;
+            let duration_per_step = t0.elapsed() / n_steps;
             if t0.elapsed() + duration_per_step + Duration::from_millis(1) > _time_remaining / 8 {
                 break;
             }
         }
         // dbg!(n_steps);
         self.moves_taken += 1;
-        best_action::<T>(b, self.c,  &mut self.qmap, &mut self.rng)
+        best_action::<T>(b, self.c, &mut self.qmap, &mut self.rng)
     }
 }
 
@@ -286,12 +304,7 @@ where
         for _ in 0..10000 {
             mcts_step::<T>(b, self.c, &mut self.qmap, &mut self.rng);
         }
-        let a = best_action::<T>(
-            b,
-            self.c,
-            &self.qmap,
-            &mut self.rng,
-        );
+        let a = best_action::<T>(b, self.c, &self.qmap, &mut self.rng);
         self.moves_taken += 1;
         a
     }
