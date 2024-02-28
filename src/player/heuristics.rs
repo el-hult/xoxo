@@ -89,10 +89,16 @@ pub fn c4_heuristic(my_marker: PlayerMark, b: &C4Board) -> f64 {
         let mut k = 0;
         for row in 0..6 {
             let mut j = 0;
-            for col in 0..4 {
-                if raw_board[col][row] == Some(my_marker) { j += 1; }
+            for col in raw_board.iter().take(4) {
+                if col[row] == Some(my_marker) {
+                    j += 1;
+                } else {
+                    continue;
+                }
             }
-            if j == 3 { k += 1; }
+            if j == 3 {
+                k += 1;
+            }
         }
         k as f64
     };

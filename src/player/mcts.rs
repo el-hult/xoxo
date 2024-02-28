@@ -91,7 +91,7 @@ pub(crate) fn mcts_step<M: Mdp>(
     };
 
     // Update the Q-function
-    qmap.add_to_state_action_data(state,&best_action, g_return);
+    qmap.add_to_state_action_data(state, &best_action, g_return);
 
     g_return
 }
@@ -129,18 +129,23 @@ where
     }
     /// get a two-layer access mutably in the stack
     pub fn get_mut(&mut self, s: &S, a: &A) -> Option<&mut (f64, f64)> {
-        self.state_action_value.get_mut(s).map(|m| m.get_mut(a)).flatten()
+        self.state_action_value
+            .get_mut(s)
+            .and_then(|m| m.get_mut(a))
     }
-    pub fn add_to_state_action_data(&mut self, s: &S, a: &A,g_return: f64) {
+    pub fn add_to_state_action_data(&mut self, s: &S, a: &A, g_return: f64) {
         self.increment_state_visits(s);
-        if let Some((w, v)) = self.get_mut(s,a) {
+        if let Some((w, v)) = self.get_mut(s, a) {
             *w += g_return;
             *v += 1.0;
         } else {
             if !self.state_action_value.contains_key(s) {
                 self.state_action_value.insert(s.clone(), HashMap::new());
             }
-            self.state_action_value.get_mut(s).unwrap().insert(a.clone(), (g_return, 1.0));
+            self.state_action_value
+                .get_mut(s)
+                .unwrap()
+                .insert(a.clone(), (g_return, 1.0));
         }
     }
     pub fn n_state_visits(&self, state: &S) -> f64 {
@@ -163,30 +168,34 @@ pub(crate) fn best_action<M: Mdp>(
 ) -> M::Action {
     let allowed_actions = M::allowed_actions(state);
     let t = qmap.n_state_visits(state);
-    let best_action = if let Some(m) = qmap.get(&state) {
+    let best_action = if let Some(m) = qmap.get(state) {
         allowed_actions
-        .into_iter()
-        .map(|action| {
-            let (w, v) = m
-                .get(&action)
-                .unwrap_or(&(0.0, 0.0));
-            (action, ucb(c, *w, *v, t))
-        })
-        .fold((-f64::INFINITY, vec![]),|(mut record, mut actions),(action,ucb)| {
-            if ucb == record {
-                actions.push(action)
-            } else if ucb > record {
-                record = ucb;
-                actions = vec![action];
-            }
-            (record, actions)
-        })
-        .1
-        .into_iter()
-        .choose(rng)
-        .expect("There must be at least one action")
+            .into_iter()
+            .map(|action| {
+                let (w, v) = m.get(&action).unwrap_or(&(0.0, 0.0));
+                (action, ucb(c, *w, *v, t))
+            })
+            .fold(
+                (-f64::INFINITY, vec![]),
+                |(mut record, mut actions), (action, ucb)| {
+                    if ucb == record {
+                        actions.push(action)
+                    } else if ucb > record {
+                        record = ucb;
+                        actions = vec![action];
+                    }
+                    (record, actions)
+                },
+            )
+            .1
+            .into_iter()
+            .choose(rng)
+            .expect("There must be at least one action")
     } else {
-        allowed_actions.into_iter().choose(rng).expect("There must be at least one action")
+        allowed_actions
+            .into_iter()
+            .choose(rng)
+            .expect("There must be at least one action")
     };
     best_action
 }
@@ -259,7 +268,7 @@ mod test {
             .state_action_value
             .get(&root)
             .unwrap()
-            .into_iter()
+            .iter()
             .map(|(_, (_, v))| v)
             .collect::<Vec<_>>();
         assert_eq!(visits.len(), 2);
@@ -300,8 +309,8 @@ impl<M: Mdp> Drop for MctsAi<M> {
         info!("In my lifetime, I took {} moves", self.steps_taken);
         if let Some(ref mem_path) = self.mem_path {
             if let Ok(mut fd) = std::fs::File::create(mem_path) {
-                let mut bytes = bitcode::serialize(&self.qmap).unwrap();
-                match fd.write_all(&mut bytes) {
+                let bytes = bitcode::serialize(&self.qmap).unwrap();
+                match fd.write_all(&bytes) {
                     Ok(_) => {}
                     Err(e) => {
                         panic!("Failed to serialize the qmap: {}", e);
@@ -320,7 +329,7 @@ impl<T: Mdp> MctsAi<T> {
         let mut qmap: QMap<T::State, T::Action> = QMap::<T::State, T::Action>::new();
         if let Some(ref mem_path) = mem_path {
             if let Ok(mut fd) = std::fs::File::open(mem_path) {
-                let mut bytes = vec!();
+                let mut bytes = vec![];
                 let _ = fd.read_to_end(&mut bytes);
                 if let Ok(a) = bitcode::deserialize(&bytes) {
                     qmap = a;
@@ -370,8 +379,8 @@ where
             mcts_step::<T>(b, self.c, &mut self.qmap, &mut self.rng);
             self.steps_taken += 1;
         }
-        let a = best_action::<T>(b, self.c, &self.qmap, &mut self.rng);
-        a
+
+        best_action::<T>(b, self.c, &self.qmap, &mut self.rng)
     }
 }
 

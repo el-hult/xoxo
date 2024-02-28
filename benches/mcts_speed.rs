@@ -37,8 +37,14 @@ fn criterion_benchmark(c: &mut Criterion) {
     group.measurement_time(Duration::from_secs(10));
     group.sampling_mode(criterion::SamplingMode::Flat);
     group.sample_size(10);
-    group.bench_function("mcts-c4-io", |b| b.iter(|| black_box(mcts_io())));
-    group.bench_function("mcts-c4-play", |b| b.iter(|| black_box(mcts_move())));
+    group.bench_function("mcts-c4-io", |b| b.iter(|| {
+        mcts_io();
+        black_box(())
+    }));
+    group.bench_function("mcts-c4-play", |b| b.iter(|| {
+        mcts_move();
+        black_box(())
+    }));
     group.finish();
 }
 
