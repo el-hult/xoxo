@@ -4,7 +4,7 @@
 //!
 //! It also holds a Ai struct, that knows how to play a game using MCTS, assuming the MDP structure of the games is known.
 
-use itertools::Itertools as _;
+use log::info;
 use rand::prelude::SliceRandom;
 use rand::rngs::StdRng;
 use rand::seq::IteratorRandom as _;
@@ -91,7 +91,7 @@ pub(crate) fn mcts_step<M: Mdp>(
     };
 
     // Update the Q-function
-    qmap.add_to_state_action_data((state.clone(),best_action), g_return);
+    qmap.add_to_state_action_data(state,&best_action, g_return);
 
     g_return
 }
@@ -103,7 +103,8 @@ where
     A: Hash + Eq,
 {
     /// map a state-action pair to a tuple of the total regret obtained, and the number of visits to that state
-    state_action_value: HashMap<(S, A), (f64, f64)>,
+    /// uses two nested hashmaps. because of the access patterns, this seems more efficient.
+    state_action_value: HashMap<S, HashMap<A, (f64, f64)>>,
     /// at 'expansion' we observe a state, but we don't know the value of the actions from that state, since
     /// we only did rollout from that state. This map keeps track of the number of visits to each state
     /// it should always contain one more than if you sum over the second element of the state_action_value
@@ -122,18 +123,25 @@ where
             state_visits: HashMap::new(),
         }
     }
-    pub fn get(&self, key: &(S, A)) -> Option<&(f64, f64)> {
-        self.state_action_value.get(key)
+    /// Peel off the outer layer in the hashmap stack
+    pub fn get(&self, s: &S) -> Option<&HashMap<A, (f64, f64)>> {
+        self.state_action_value.get(s)
     }
-    pub fn add_to_state_action_data(&mut self, key:(S,A),g_return: f64) {
-        self.increment_state_visits(&key.0);
-        if let Some((w, v)) = self.state_action_value.get_mut(&key) {
+    /// get a two-layer access mutably in the stack
+    pub fn get_mut(&mut self, s: &S, a: &A) -> Option<&mut (f64, f64)> {
+        self.state_action_value.get_mut(s).map(|m| m.get_mut(a)).flatten()
+    }
+    pub fn add_to_state_action_data(&mut self, s: &S, a: &A,g_return: f64) {
+        self.increment_state_visits(s);
+        if let Some((w, v)) = self.get_mut(s,a) {
             *w += g_return;
             *v += 1.0;
         } else {
-            self.state_action_value.insert(key, (g_return, 1.0));
+            if !self.state_action_value.contains_key(s) {
+                self.state_action_value.insert(s.clone(), HashMap::new());
+            }
+            self.state_action_value.get_mut(s).unwrap().insert(a.clone(), (g_return, 1.0));
         }
-
     }
     pub fn n_state_visits(&self, state: &S) -> f64 {
         *self.state_visits.get(state).unwrap_or(&0.0)
@@ -155,11 +163,12 @@ pub(crate) fn best_action<M: Mdp>(
 ) -> M::Action {
     let allowed_actions = M::allowed_actions(state);
     let t = qmap.n_state_visits(state);
-    let best_action = allowed_actions
+    let best_action = if let Some(m) = qmap.get(&state) {
+        allowed_actions
         .into_iter()
         .map(|action| {
-            let (w, v) = qmap
-                .get(&(state.clone(), action.clone())) // TODO: this access, which needs hashing, is responsible for ~80% of all CPU in running the MCTS algo
+            let (w, v) = m
+                .get(&action)
                 .unwrap_or(&(0.0, 0.0));
             (action, ucb(c, *w, *v, t))
         })
@@ -175,7 +184,10 @@ pub(crate) fn best_action<M: Mdp>(
         .1
         .into_iter()
         .choose(rng)
-        .expect("There must be at least one action");
+        .expect("There must be at least one action")
+    } else {
+        allowed_actions.into_iter().choose(rng).expect("There must be at least one action")
+    };
     best_action
 }
 

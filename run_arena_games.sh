@@ -4,7 +4,7 @@ rm -f score.csv
 rm -f *.data
 # players=("random" "ab4" "ab6" "minimax4" "mcts1" "mcts2" "mcts3");
 players=("ab6" "mcts1" "mcts2" "mcts3");
-game=uttt
+game=c4
 for k in {1..10}; do
 for p1 in ${players[@]}; do
 for p2 in ${players[@]}; do
