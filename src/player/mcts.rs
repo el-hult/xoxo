@@ -159,13 +159,21 @@ pub(crate) fn best_action<M: Mdp>(
         .into_iter()
         .map(|action| {
             let (w, v) = qmap
-                .get(&(state.clone(), action.clone()))
+                .get(&(state.clone(), action.clone())) // TODO: this access, which needs hashing, is responsible for ~80% of all CPU in running the MCTS algo
                 .unwrap_or(&(0.0, 0.0));
             (action, ucb(c, *w, *v, t))
         })
-        .max_set_by(|(_, ucb1), (_, ucb2)| ucb1.partial_cmp(ucb2).unwrap())
+        .fold((-f64::INFINITY, vec![]),|(mut record, mut actions),(action,ucb)| {
+            if ucb == record {
+                actions.push(action)
+            } else if ucb > record {
+                record = ucb;
+                actions = vec![action];
+            }
+            (record, actions)
+        })
+        .1
         .into_iter()
-        .map(|(action, _)| action)
         .choose(rng)
         .expect("There must be at least one action");
     best_action
