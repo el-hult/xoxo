@@ -16,5 +16,6 @@ Thre are two binaries:
 
 Here is a command on how I profile with flamegraph:
 ```bash
+cargo build --release
 PERF=/usr/lib/linux-tools/5.4.0-171-generic/perf flamegraph -- ./target/release/arena c4 run --player2 minimax4 --player1 mcts3
 ```
