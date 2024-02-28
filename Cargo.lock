@@ -1085,6 +1085,7 @@ dependencies = [
  "csv",
  "enum-iterator",
  "itertools 0.12.1",
+ "lazy_static",
  "log",
  "rand",
  "serde",
