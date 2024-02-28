@@ -12,6 +12,7 @@ use rand::SeedableRng;
 use serde::{Deserialize, Serialize};
 
 use std::hash::Hash;
+use std::io::{Read, Write};
 use std::time::Duration;
 use std::{collections::HashMap, fmt::Debug};
 
@@ -277,8 +278,9 @@ pub struct MctsAi<T: Mdp> {
 impl<M: Mdp> Drop for MctsAi<M> {
     fn drop(&mut self) {
         if let Some(ref mem_path) = self.mem_path {
-            if let Ok(fd) = std::fs::File::create(mem_path) {
-                match bincode::serialize_into(fd, &self.qmap) {
+            if let Ok(mut fd) = std::fs::File::create(mem_path) {
+                let mut bytes = bitcode::serialize(&self.qmap).unwrap();
+                match fd.write_all(&mut bytes) {
                     Ok(_) => {}
                     Err(e) => {
                         panic!("Failed to serialize the qmap: {}", e);
@@ -296,8 +298,10 @@ impl<T: Mdp> MctsAi<T> {
     pub fn new(seed: u64, c: f64, mem_path: Option<String>) -> Self {
         let mut qmap: QMap<T::State, T::Action> = QMap::<T::State, T::Action>::new();
         if let Some(ref mem_path) = mem_path {
-            if let Ok(fd) = std::fs::File::open(mem_path) {
-                if let Ok(a) = bincode::deserialize_from(fd) {
+            if let Ok(mut fd) = std::fs::File::open(mem_path) {
+                let mut bytes = vec!();
+                let _ = fd.read_to_end(&mut bytes);
+                if let Ok(a) = bitcode::deserialize(&bytes) {
                     qmap = a;
                 }
             }

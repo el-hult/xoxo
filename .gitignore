@@ -6,4 +6,4 @@
 
 perf.data*
 flamegraph.svg
-*.bincode
+*.data

@@ -277,9 +277,9 @@ fn make_player_c4(
         PlayerSpec::Minimax4 => Box::new(MinMaxAi::new(mark, c4_heuristic, 4)),
         PlayerSpec::AB4 => Box::new(ABAi::new(mark, c4_heuristic, 4)),
         PlayerSpec::AB6 => Box::new(ABAi::new(mark, c4_heuristic, 6)),
-        PlayerSpec::MCTS1 => Box::new(MctsAi::<C4Board>::new(rng.gen(), 1.0, Some(format!("mcts1.{}.c4.bincode",mark)))),
-        PlayerSpec::MCTS2 => Box::new(MctsAi::<C4Board>::new(rng.gen(), 2.0, Some(format!("mcts2.{}.c4.bincode",mark)))),
-        PlayerSpec::MCTS3 => Box::new(MctsAi::<C4Board>::new(rng.gen(), 0.5, Some(format!("mcts3.{}.c4.bincode",mark)))),
+        PlayerSpec::MCTS1 => Box::new(MctsAi::<C4Board>::new(rng.gen(), 1.0, Some(format!("mcts1.{}.c4.data",mark)))),
+        PlayerSpec::MCTS2 => Box::new(MctsAi::<C4Board>::new(rng.gen(), 2.0, Some(format!("mcts2.{}.c4.data",mark)))),
+        PlayerSpec::MCTS3 => Box::new(MctsAi::<C4Board>::new(rng.gen(), 0.5, Some(format!("mcts3.{}.c4.data",mark)))),
     }
 }
 
@@ -293,9 +293,9 @@ fn make_player_ttt(
         PlayerSpec::Minimax4 => Box::new(MinMaxAi::new(mark, ttt_heuristic, 4)),
         PlayerSpec::AB4 => Box::new(ABAi::new(mark, ttt_heuristic, 4)),
         PlayerSpec::AB6 => Box::new(ABAi::new(mark, ttt_heuristic, 6)),
-        PlayerSpec::MCTS1 => Box::new(MctsAi::<TTTBoard>::new(rng.gen(), 1.0, Some(format!("mcts1.{}.ttt.bincode",mark)))),
-        PlayerSpec::MCTS2 => Box::new(MctsAi::<TTTBoard>::new(rng.gen(), 2.0, Some(format!("mcts2.{}.ttt.bincode",mark)))),
-        PlayerSpec::MCTS3 => Box::new(MctsAi::<TTTBoard>::new(rng.gen(), 0.5, Some(format!("mcts3.{}.ttt.bincode",mark)))),
+        PlayerSpec::MCTS1 => Box::new(MctsAi::<TTTBoard>::new(rng.gen(), 1.0, Some(format!("mcts1.{}.ttt.data",mark)))),
+        PlayerSpec::MCTS2 => Box::new(MctsAi::<TTTBoard>::new(rng.gen(), 2.0, Some(format!("mcts2.{}.ttt.data",mark)))),
+        PlayerSpec::MCTS3 => Box::new(MctsAi::<TTTBoard>::new(rng.gen(), 0.5, Some(format!("mcts3.{}.ttt.data",mark)))),
     }
 }
 fn make_player_uttt(
@@ -308,9 +308,9 @@ fn make_player_uttt(
         PlayerSpec::Minimax4 => Box::new(MinMaxAi::new(mark, uttt_heuristic, 4)),
         PlayerSpec::AB4 => Box::new(ABAi::new(mark, uttt_heuristic, 4)),
         PlayerSpec::AB6 => Box::new(ABAi::new(mark, uttt_heuristic, 6)),
-        PlayerSpec::MCTS1 => Box::new(MctsAi::<UTTTBoard>::new(rng.gen(), 1.0, Some(format!("mcts1.{}.uttt.bincode",mark)))),
-        PlayerSpec::MCTS2 => Box::new(MctsAi::<UTTTBoard>::new(rng.gen(), 2.0, Some(format!("mcts2.{}.uttt.bincode",mark)))),
-        PlayerSpec::MCTS3 => Box::new(MctsAi::<UTTTBoard>::new(rng.gen(), 0.5, Some(format!("mcts3.{}.uttt.bincode",mark)))),
+        PlayerSpec::MCTS1 => Box::new(MctsAi::<UTTTBoard>::new(rng.gen(), 1.0, Some(format!("mcts1.{}.uttt.data",mark)))),
+        PlayerSpec::MCTS2 => Box::new(MctsAi::<UTTTBoard>::new(rng.gen(), 2.0, Some(format!("mcts2.{}.uttt.data",mark)))),
+        PlayerSpec::MCTS3 => Box::new(MctsAi::<UTTTBoard>::new(rng.gen(), 0.5, Some(format!("mcts3.{}.uttt.data",mark)))),
     }
 }
 
