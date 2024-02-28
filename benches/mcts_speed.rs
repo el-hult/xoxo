@@ -35,14 +35,14 @@ fn mcts_io() {
 
 fn criterion_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("mcts-c4");
-    group.measurement_time(Duration::from_secs(10));
+    group.measurement_time(Duration::from_secs(15));
     group.sampling_mode(criterion::SamplingMode::Flat);
     group.sample_size(10);
     group.bench_function("mcts-c4-io", |b| b.iter(|| {
         mcts_io();
         black_box(())
     }));
-    group.sample_size(200);
+    group.sample_size(300);
     group.bench_function("mcts-c4-play", |b| b.iter(|| {
         mcts_move();
         black_box(())
