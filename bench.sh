@@ -1,4 +1,4 @@
-game=uttt
+game=c4
 
 rm *.data
 cargo build --release --bin arena
