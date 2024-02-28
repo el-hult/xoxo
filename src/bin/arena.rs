@@ -4,7 +4,6 @@
 
 use clap::{Parser, Subcommand, ValueEnum};
 use enum_iterator::{all, cardinality, Sequence};
-use log::debug;
 use rand::rngs::ThreadRng;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -12,8 +11,8 @@ use std::io::Seek;
 use std::path::PathBuf;
 use std::time::Duration;
 use xoxo::{
-    core::{BlitzPlayer, Board, GameEndStatus, GameStatus, GameType, PlayerMark},
-    game::{connect_four::C4Board, tictactoe::TTTBoard, ultimate_ttt::UTTTBoard},
+    core::{BlitzPlayer, GameEndStatus, GameType, PlayerMark},
+    game::{connect_four::C4Board, run_blitz_game, tictactoe::TTTBoard, ultimate_ttt::UTTTBoard},
     player::{c4_heuristic, ttt_heuristic, uttt_heuristic, ABAi, MctsAi, MinMaxAi, RandomAi},
 };
 
@@ -206,66 +205,7 @@ fn record_result(outfile: &PathBuf, record: GameRecord) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn run_game<B: Board>(
-    mut p1: Box<dyn BlitzPlayer<B>>,
-    mut p2: Box<dyn BlitzPlayer<B>>,
-) -> (GameEndStatus, Duration, Duration) {
-    let time0 = std::time::Duration::from_millis(1000);
-    let mut current_player = PlayerMark::Naught;
-    let mut board = B::default();
-    let mut time_remaining_naughts = time0.clone();
-    let mut time_remaining_crosses = time0.clone();
-    while !board.game_is_over() {
-        let t0 = std::time::Instant::now();
-        let action = match current_player {
-            PlayerMark::Naught => p1.blitz(&board, time_remaining_naughts),
-            PlayerMark::Cross => p2.blitz(&board, time_remaining_crosses),
-        };
-        let t1 = std::time::Instant::now();
-        match current_player {
-            PlayerMark::Naught => {
-                time_remaining_naughts = time_remaining_naughts
-                    .checked_sub(t1.duration_since(t0))
-                    .unwrap_or(Duration::ZERO);
-                if time_remaining_naughts == Duration::ZERO {
-                    debug!("{} ran out of time", PlayerMark::Naught);
-                    return (
-                        GameEndStatus::X,
-                        time_remaining_naughts,
-                        time_remaining_crosses,
-                    );
-                }
-            }
-            PlayerMark::Cross => {
-                time_remaining_crosses = time_remaining_crosses
-                .checked_sub(t1.duration_since(t0))
-                .unwrap_or(Duration::ZERO);
-            if time_remaining_crosses == Duration::ZERO {
-                    debug!("{} ran out of time", PlayerMark::Cross);
-                    return (
-                        GameEndStatus::O,
-                        time_remaining_naughts,
-                        time_remaining_crosses,
-                    );
-                }
-            }
-        }
-        debug!("Player {} played {}", current_player, &action);
-        board.place_mark(action, current_player);
-        debug!("\n{}", board);
-        current_player = current_player.other();
-    }
-    debug!("Time remaining: {:?} and {:?}", time_remaining_naughts, time_remaining_crosses);
-    debug!("Game over");
-    let winstatus = match board.game_status() {
-        GameStatus::Draw => GameEndStatus::Draw,
-        GameStatus::Won(PlayerMark::Cross) => GameEndStatus::X,
-        GameStatus::Won(PlayerMark::Naught) => GameEndStatus::O,
-        GameStatus::Undecided => unreachable!(),
-    };
-    debug!("Game ended with {}", winstatus);
-    (winstatus, time_remaining_naughts, time_remaining_crosses)
-}
+
 
 fn make_player_c4(
     p: PlayerSpec,
@@ -282,6 +222,8 @@ fn make_player_c4(
         PlayerSpec::MCTS3 => Box::new(MctsAi::<C4Board>::new(rng.gen(), 0.5, Some(format!("mcts3.{}.c4.data",mark)))),
     }
 }
+
+static T0: Duration = Duration::from_secs(1);
 
 fn make_player_ttt(
     p: PlayerSpec,
@@ -318,17 +260,17 @@ fn run_c4(player1: PlayerSpec, player2: PlayerSpec) -> (GameEndStatus, Duration,
     let mut rng = rand::thread_rng();
     let p1 = make_player_c4(player1, PlayerMark::Naught, &mut rng);
     let p2 = make_player_c4(player2, PlayerMark::Cross, &mut rng);
-    run_game::<C4Board>(p1, p2)
+    run_blitz_game::<C4Board>(p1, p2,T0)
 }
 fn run_ttt(player1: PlayerSpec, player2: PlayerSpec) -> (GameEndStatus, Duration, Duration) {
     let mut rng = rand::thread_rng();
     let p1 = make_player_ttt(player1, PlayerMark::Naught, &mut rng);
     let p2 = make_player_ttt(player2, PlayerMark::Cross, &mut rng);
-    run_game::<TTTBoard>(p1, p2)
+    run_blitz_game::<TTTBoard>(p1, p2,T0)
 }
 fn run_uttt(player1: PlayerSpec, player2: PlayerSpec) -> (GameEndStatus, Duration, Duration) {
     let mut rng = rand::thread_rng();
     let p1 = make_player_uttt(player1, PlayerMark::Naught, &mut rng);
     let p2 = make_player_uttt(player2, PlayerMark::Cross, &mut rng);
-    run_game::<UTTTBoard>(p1, p2)
+    run_blitz_game::<UTTTBoard>(p1, p2,T0)
 }
