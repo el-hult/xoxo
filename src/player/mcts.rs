@@ -102,14 +102,9 @@ where
     S: Hash + Eq,
     A: Hash + Eq,
 {
-    /// map a state-action pair to a tuple of the total regret obtained, and the number of visits to that state
-    /// uses two nested hashmaps. because of the access patterns, this seems more efficient.
-    state_action_value: HashMap<S, HashMap<A, (f64, f64)>>,
-    /// at 'expansion' we observe a state, but we don't know the value of the actions from that state, since
-    /// we only did rollout from that state. This map keeps track of the number of visits to each state
-    /// it should always contain one more than if you sum over the second element of the state_action_value
-    /// for each action in the same state
-    state_visits: HashMap<S, f64>,
+    /// map a state to number-of-visits and a secondary map.
+    /// The secondary map maps actions (taken from this state) into the total return observed and the number of times THAT action was taken.
+    state_action_value: HashMap<S, (f64, HashMap<A, (f64, f64)>)>,
 }
 
 impl<S, A> QMap<S, A>
@@ -120,42 +115,42 @@ where
     pub fn new() -> Self {
         QMap {
             state_action_value: HashMap::new(),
-            state_visits: HashMap::new(),
         }
     }
     /// Peel off the outer layer in the hashmap stack
     pub fn get(&self, s: &S) -> Option<&HashMap<A, (f64, f64)>> {
-        self.state_action_value.get(s)
+        self.state_action_value.get(s).map(|(_, m)| m)
     }
-    /// get a two-layer access mutably in the stack
-    pub fn get_mut(&mut self, s: &S, a: &A) -> Option<&mut (f64, f64)> {
-        self.state_action_value
-            .get_mut(s)
-            .and_then(|m| m.get_mut(a))
-    }
+
     pub fn add_to_state_action_data(&mut self, s: &S, a: &A, g_return: f64) {
         self.increment_state_visits(s);
-        if let Some((w, v)) = self.get_mut(s, a) {
-            *w += g_return;
-            *v += 1.0;
-        } else {
-            if !self.state_action_value.contains_key(s) {
-                self.state_action_value.insert(s.clone(), HashMap::new());
+        if let Some((_,m)) = self.state_action_value.get_mut(s) {
+            match m.get_mut(a) {
+                Some((w,v)) => {
+                    *w += g_return;
+                    *v += 1.0;
+                },
+                None => {}
             }
-            self.state_action_value
-                .get_mut(s)
-                .unwrap()
-                .insert(a.clone(), (g_return, 1.0));
+            m.entry(a.clone()).or_insert((0.0,0.0));
+        } else {
+            unreachable!("The 'increment_state_visits' ensures this map is created.")
         }
     }
     pub fn n_state_visits(&self, state: &S) -> f64 {
-        *self.state_visits.get(state).unwrap_or(&0.0)
+        *self
+            .state_action_value
+            .get(state)
+            .map(|(v, _)| v)
+            .unwrap_or(&0.0)
     }
+    /// POSTCONDITION: the state is present in self.state_action_value
     pub fn increment_state_visits(&mut self, state: &S) {
-        if let Some(v) = self.state_visits.get_mut(state) {
+        if let Some(v) = self.state_action_value.get_mut(state).map(|(v, _)| v) {
             *v += 1.0;
         } else {
-            self.state_visits.insert((*state).clone(), 1.0);
+            self.state_action_value
+                .insert(state.clone(), (0.0, HashMap::new()));
         }
     }
 }
@@ -266,6 +261,7 @@ mod test {
             .state_action_value
             .get(&root)
             .unwrap()
+            .1
             .iter()
             .map(|(_, (_, v))| v)
             .collect::<Vec<_>>();
