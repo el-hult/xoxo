@@ -1,8 +1,17 @@
 use std::fmt::Display;
+use lazy_static::lazy_static;
+
+use rand::{rngs::StdRng, Rng, SeedableRng};
 
 use crate::core::{Board, GameStatus, PlayerMark};
 
-type RawBoard = [[Option<PlayerMark>; 6]; 7];
+const NCOLS:usize = 7;
+const NROWS:usize = 6;
+type RawBoard = [[Option<PlayerMark>; NROWS]; NCOLS];
+lazy_static! {
+    /// the ZOBRIST instance a specific hasher that anyone can use without explicitly passing it around
+    static ref ZOBRIST: Zobrist = Zobrist::make(123456789);
+}
 
 /// A board is a 7x6 grid, where you can place a marker in one of the 7 columns
 /// it lands on the top in that column we number the columns left to right and bottom to top
@@ -15,7 +24,7 @@ type RawBoard = [[Option<PlayerMark>; 6]; 7];
 /// [0][1]   [1][1]   [2][1]   [3][1]   [4][1]   [5][1]   [6][1]
 /// [0][0]   [1][0]   [2][0]   [3][0]   [4][0]   [5][0]   [6][0]
 ///
-#[derive(Clone, Copy, Debug, PartialOrd, Ord, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
 pub struct C4Board {
     /// 7 columns, 6 rows. N.B. it is column major
     board: RawBoard,
@@ -23,11 +32,13 @@ pub struct C4Board {
     status: GameStatus,
     /// Current player must always be valid. I.e. you must always keep it up to date in all &mut self methods
     current_player: PlayerMark,
+    /// Zobrist hash value
+    zhash: u64
 }
 
 impl std::hash::Hash for C4Board {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.board.hash(state);
+        self.zhash.hash(state);
     }
 }
 
@@ -44,6 +55,12 @@ impl Eq for C4Board {}
 impl From<C4Board> for RawBoard {
     fn from(val: C4Board) -> Self {
         val.board
+    }
+}
+
+impl Default for C4Board {
+    fn default() -> Self {
+        Self { board: Default::default(), status: Default::default(), current_player: Default::default(), zhash: ZOBRIST.empty }
     }
 }
 
@@ -81,6 +98,7 @@ impl Board for C4Board {
             self.status = GameStatus::Draw;
         }
         self.current_player = self.current_player.other();
+        ZOBRIST.update(&mut self.zhash,column,row,marker);
     }
 }
 
@@ -114,11 +132,13 @@ macro_rules! parse_c4board {
 
         let current_player = C4Board::raw_current_player(game_board);
         let status = C4Board::raw_game_status(game_board);
+        let zhash = ZOBRIST.hash_board(&game_board);
 
         C4Board {
             board: game_board,
             current_player,
             status,
+            zhash
         }
     }};
 }
@@ -296,6 +316,45 @@ impl Display for C4Board {
     }
 }
 
+/// Zobrist is a struct that helps with updating the hash of game states
+/// It implements an interface for simple Zobrist hashing
+struct Zobrist {
+    xs: [[u64; NROWS]; NCOLS],
+    os: [[u64; NROWS]; NCOLS],
+    empty: u64
+}
+
+impl Zobrist {
+    fn make(seed:u64) -> Self {
+        let mut rng = StdRng::seed_from_u64(seed);
+        let xs = rng.gen();
+        let os = rng.gen();
+        let empty = rng.gen();
+        Self {xs,os,empty}
+    }
+    #[cfg(test)]
+    pub fn hash_board(&self,board: &RawBoard) -> u64 {
+        let mut hash = self.empty;
+        for col in 0..NCOLS {
+            for row in 0..NROWS {
+                match board[col][row] {
+                    Some(marker) => {self.update(&mut hash,col,row,marker)},
+                    None => {},
+                }
+            }
+        }
+        hash
+    }
+    pub fn update(&self,zhash:&mut u64,col:usize,row:usize,marker: PlayerMark ) {
+        let val= match marker {
+            PlayerMark::Naught => self.os[col][row],
+            PlayerMark::Cross => self.xs[col][row],
+        };
+        *zhash ^= val;
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
     use crate::core::{Board, GameStatus};
@@ -394,5 +453,42 @@ mod tests {
         );
         assert_eq!(board.winner(), Some(PlayerMark::Naught));
         assert!(matches!(board.game_status(), GameStatus::Won(_)));
+    }
+
+    #[test]
+    fn default_board() {
+        let board = C4Board::default();
+        let rb = RawBoard::from(board);
+        assert!(rb.iter().flatten().all(|e| e.is_none()));
+        assert!(board.status == GameStatus::Undecided);
+        assert!(board.current_player == PlayerMark::Naught);
+    }
+    #[test]
+    fn zobrist() {
+        let board1: C4Board = parse_c4board!("
+        .......
+        .......
+        .o.....
+        .oo....
+        .xxo...
+        xoxxo..
+        "
+        );
+        let mut board2 = C4Board::default();
+        board2.place_mark(4, board2.current_player);
+        board2.place_mark(3, board2.current_player);
+        board2.place_mark(1, board2.current_player);
+        board2.place_mark(2, board2.current_player);
+        
+        board2.place_mark(3, board2.current_player);
+        board2.place_mark(2, board2.current_player);
+        board2.place_mark(2, board2.current_player);
+        board2.place_mark(1, board2.current_player);
+
+        board2.place_mark(1, board2.current_player);
+        board2.place_mark(0, board2.current_player);
+        board2.place_mark(1, board2.current_player);
+        assert_eq!(board1,board2);
+        assert_eq!(board1.zhash,board2.zhash);
     }
 }
