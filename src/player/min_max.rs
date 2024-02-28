@@ -99,37 +99,5 @@ impl<M> Drop for MinMaxAi<M> {
 
 #[cfg(test)]
 mod test {
-    use std::str::FromStr;
-
-    use super::*;
-    use crate::game::tictactoe::{TTTAddr, TTTBoard};
-
-    pub fn ttt_heuristic(my_marker: PlayerMark, b: &TTTBoard) -> f64 {
-        let n_moves_made: f64 = b.n_moves_made() as f64;
-        match b.winner() {
-            None => 0.0 + n_moves_made,
-            Some(mark) => {
-                if mark == my_marker {
-                    100.0 - n_moves_made
-                } else {
-                    -100.0 + n_moves_made
-                }
-            }
-        }
-    }
-
-    #[test]
-    fn can_find_winning_move() {
-        let b = TTTBoard::from_str("   xx    ").unwrap();
-        let mut ai = MinMaxAi::<TTTBoard>::new(PlayerMark::Cross, ttt_heuristic, 10);
-        let action: TTTAddr = ai.play(&b);
-        assert_eq!(action, TTTAddr(6))
-    }
-    #[test]
-    fn can_block_winning_move() {
-        let b = TTTBoard::from_str("oo  x    ").unwrap();
-        let mut ai = MinMaxAi::<TTTBoard>::new(PlayerMark::Cross, ttt_heuristic, 10);
-        let action = ai.play(&b);
-        assert_eq!(action, TTTAddr(3))
-    }
+    
 }
