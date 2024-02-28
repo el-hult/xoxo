@@ -1,8 +1,9 @@
 use std::fmt::Display;
+use std::hash::{Hash, Hasher};
 
 use crate::core::{Board, GameStatus, PlayerMark};
 
-#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct UTTTBoard {
     /// The board is a 3x3 grid of 3x3 grids
     /// board[i][j] is the sub-board at position (i, j)
@@ -25,6 +26,20 @@ pub struct UTTTBoard {
     /// In the first move, this is None
     last_action: Option<Action>,
 }
+
+impl Hash for UTTTBoard {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.board.hash(state);
+    }
+}
+
+impl PartialEq for UTTTBoard {
+    fn eq(&self, other: &Self) -> bool {
+        self.board == other.board
+    }
+}
+
+impl Eq for UTTTBoard {}
 
 impl Default for UTTTBoard {
     fn default() -> Self {
@@ -164,7 +179,9 @@ impl UTTTBoard {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Hash, serde::Serialize, serde::Deserialize,
+)]
 pub struct Action {
     board: (usize, usize),
     position: (usize, usize),
