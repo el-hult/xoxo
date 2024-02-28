@@ -8,7 +8,7 @@ use xoxo::player::{MctsAi, RandomAi};
 
 fn mcts_move() {
     let mut ai: MctsAi<C4Board> = MctsAi::new(123, 2.0, None);
-    ai.set_play_steps(1000);
+    ai.set_play_steps(2000);
     let board = C4Board::default();
     ai.play(&board);
 }
@@ -42,7 +42,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         mcts_io();
         black_box(())
     }));
-    group.sample_size(100);
+    group.sample_size(200);
     group.bench_function("mcts-c4-play", |b| b.iter(|| {
         mcts_move();
         black_box(())
