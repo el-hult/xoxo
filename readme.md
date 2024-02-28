@@ -10,6 +10,8 @@ The minimax and alphabeta AI players for normal TicTacToe are good - they will p
 The MCTS bots needs to have enough data to perform well. So I keep all data on previous MCTS runs in a file on disk. The deserialization takes a but of time as the file grows, and after ~10 games it starts to be prohibitive. That is not enough for beating the AB6 player. Funnily enough, these bots play better as player2. I suspect this is because the severe limitation on the serach space for their first move. The learning should be ca a factor 81 faster, since the AB6 opponent always plays the same first move, and the part of the game tree explored is much smaller.
 To speed this up, I think some custom hashing that is simpler/faster is needed. Or possibly some serialization that stores hashes to disk.
 
+### Test, Bench
+Just run `cargo bench` and `cargo test`. :)
 
 ### Profiling
 

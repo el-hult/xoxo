@@ -171,17 +171,15 @@ pub(crate) fn best_action<M: Mdp>(
     let best_action = if let Some(m) = qmap.get(state) {
         allowed_actions
             .into_iter()
-            .map(|action| {
-                let (w, v) = m.get(&action).unwrap_or(&(0.0, 0.0));
-                (action, ucb(c, *w, *v, t))
-            })
             .fold(
                 (-f64::INFINITY, vec![]),
-                |(mut record, mut actions), (action, ucb)| {
-                    if ucb == record {
+                |(mut record, mut actions), action| {
+                    let (w, v) = m.get(&action).unwrap_or(&(0.0, 0.0));
+                    let value = ucb(c, *w, *v, t);
+                    if value == record {
                         actions.push(action)
-                    } else if ucb > record {
-                        record = ucb;
+                    } else if value > record {
+                        record = value;
                         actions = vec![action];
                     }
                     (record, actions)
