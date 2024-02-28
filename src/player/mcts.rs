@@ -300,6 +300,7 @@ pub struct MctsAi<T: Mdp> {
     steps_taken: u32,
     /// The file into which we save any data that helps this AI across runs
     mem_path: Option<String>,
+    play_steps: usize
 }
 
 impl<M: Mdp> Drop for MctsAi<M> {
@@ -340,7 +341,13 @@ impl<T: Mdp> MctsAi<T> {
             c,
             steps_taken: 0,
             mem_path,
+            play_steps:10000
         }
+    }
+
+    /// Set the number of MCTS steps to take in the `play` call
+    pub fn set_play_steps(&mut self, k:usize){
+        self.play_steps = k;
     }
 }
 
@@ -373,7 +380,7 @@ where
     B: Board,
 {
     fn play(&mut self, b: &B) -> B::Coordinate {
-        for _ in 0..10000 {
+        for _ in 0..self.play_steps {
             mcts_step::<T>(b, self.c, &mut self.qmap, &mut self.rng);
             self.steps_taken += 1;
         }

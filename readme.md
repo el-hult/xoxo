@@ -13,6 +13,8 @@ To speed this up, I think some custom hashing that is simpler/faster is needed. 
 ### Test, Bench
 Just run `cargo bench` and `cargo test`. :)
 
+The benchmark reports are located in ./target/criterion/report/index.html
+
 ### Profiling
 
 Here is a command on how I profile with flamegraph:
