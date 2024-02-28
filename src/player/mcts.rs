@@ -257,11 +257,11 @@ mod test {
         // check that there are two actions in the qmap associated with the root state
         let visits = qmap
             .state_action_value
-            .iter()
-            .filter(|((s, _), (_, _))| s == &root)
+            .get(&root)
+            .unwrap()
+            .into_iter()
             .map(|(_, (_, v))| v)
             .collect::<Vec<_>>();
-        // dbg!(&qmap);
         assert_eq!(visits.len(), 2);
         assert_eq!(*visits[0], 1.0);
         assert_eq!(*visits[1], 1.0);
